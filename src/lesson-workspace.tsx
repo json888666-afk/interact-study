@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { AskPanel } from './ask-panel'
+import type { Turn } from './learning-api'
 import { fetchLesson, reviseLesson } from './lessons'
 import { Preview, type PreviewResult } from './preview'
+import { QuizPanel } from './quiz-panel'
 import { currentVersion, makeVersion, type LessonVersion, type StudySession } from './study-session'
 
 type FeedbackEntry = { id: string; instruction: string; reply: string }
 
 export function LessonWorkspace({ session, onSave }: { session: StudySession; onSave: (session: StudySession) => void }) {
   const current = currentVersion(session)
+  const [mode, setMode] = useState<'ask' | 'revise'>('ask')
+  const [practicing, setPracticing] = useState(() =>
+    new URLSearchParams(window.location.search).get('practice') === current.id)
+  const [turns, setTurns] = useState<Record<string, Turn[]>>({})
+  const [askDraft, setAskDraft] = useState('')
   const [candidate, setCandidate] = useState<LessonVersion | null>(null)
   const [instruction, setInstruction] = useState('')
   const [requesting, setRequesting] = useState(false)
@@ -14,6 +22,7 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
   const [feedback, setFeedback] = useState<FeedbackEntry[]>([])
   const [error, setError] = useState('')
   const active = useRef<AbortController | null>(null)
+  const context = { question: session.request.question, lesson: current.lesson, history: turns[current.id] ?? [] }
 
   useEffect(() => () => active.current?.abort(), [])
 
@@ -73,8 +82,17 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
     onSave({ ...session, currentId: id })
   }
 
+  function showPractice(open: boolean) {
+    const url = new URL(window.location.href)
+    if (open) url.searchParams.set('practice', current.id)
+    else url.searchParams.delete('practice')
+    window.history.replaceState(window.history.state, '', url)
+    setPracticing(open)
+  }
+
   return (
-    <div className="lesson-workspace">
+    <>
+    <div className="lesson-workspace" hidden={practicing}>
       <div className="workspace-canvas">
         {(candidate ? [current, candidate] : [current]).map((version) => {
           const staging = version.id !== current.id
@@ -87,7 +105,19 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
         })}
       </div>
       <aside className="workspace-sidebar">
-        <section className="workspace-panel" aria-labelledby="revise-title">
+        <div className="workspace-actions">
+          <div role="group" aria-label="学习方式">
+            <button className="quiet-button" type="button" aria-pressed={mode === 'ask'}
+              onClick={() => setMode('ask')}>问原理</button>
+            <button className="quiet-button" type="button" aria-pressed={mode === 'revise'}
+              onClick={() => setMode('revise')}>修改演示</button>
+          </div>
+          <button className="primary-button" type="button" disabled={pending}
+            onClick={() => showPractice(true)}>开始练习</button>
+        </div>
+        {mode === 'ask' && <AskPanel key={current.id} context={context} draft={askDraft} setDraft={setAskDraft}
+          onAnswer={(turn) => setTurns((items) => ({ ...items, [current.id]: [...context.history, turn].slice(-6) }))} />}
+        <section className="workspace-panel" aria-labelledby="revise-title" hidden={mode !== 'revise'}>
           <h2 id="revise-title">对话修改</h2>
           {feedback.length > 0 && <ol className="feedback-list" aria-live="polite">
             {feedback.map((entry) => <li key={entry.id}>
@@ -117,5 +147,12 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
         </section>
       </aside>
     </div>
+    {practicing && <QuizPanel key={current.id} owner={session.id} version={current.id} context={context}
+      onReturn={(suggestion) => {
+        if (suggestion) setAskDraft(suggestion)
+        setMode('ask')
+        showPractice(false)
+      }} />}
+    </>
   )
 }

@@ -49,10 +49,28 @@ a { color: inherit; }
 .study { padding-top: 24px; width: min(100% - 40px, 1120px); }
 .resume-button { margin-top: 10px; overflow-wrap: anywhere; }
 .lesson-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); align-items: start; gap: 16px; }
+.lesson-workspace[hidden] { display: none; }
 .workspace-canvas, .workspace-sidebar { min-width: 0; }
 .workspace-canvas { position: relative; }
 .staged-lesson { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
 .workspace-sidebar { display: grid; gap: 14px; }
+.workspace-actions, .quiz-header, .quiz-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.workspace-actions, .quiz-header { justify-content: space-between; }
+.workspace-actions [aria-pressed="true"], .quiz-number[aria-current] { background: #d8eee2; font-weight: 700; }
+.screenshot-input { display: block; width: 100%; margin: 6px 0 12px; font: inherit; font-size: 13px; }
+.explanation { white-space: pre-wrap; overflow-wrap: anywhere; }
+.quiz-panel { max-width: 760px; margin-inline: auto; padding: clamp(16px, 4vw, 30px); border: 1px solid var(--line); border-radius: 16px; background: white; }
+.quiz-header h2 { margin: 0; }
+.quiz-header p { margin: 6px 0 0; color: var(--muted); }
+.quiz-number { min-width: 34px; border: 1px solid var(--line); }
+.quiz-options { border: 0; padding: 0; margin: 14px 0; min-width: 0; }
+.quiz-options legend { padding: 0; margin-bottom: 8px; font-weight: 700; overflow-wrap: anywhere; }
+.quiz-options label { display: flex; align-items: baseline; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin: 6px 0; overflow-wrap: anywhere; }
+.quiz-options input { accent-color: var(--green); }
+.quiz-feedback, .quiz-report { background: #f0f7f1; padding: 14px; border-radius: 10px; margin: 12px 0; }
+.quiz-report h3 { margin: 0; }
+.quiz-report .quiz-actions { margin-bottom: 10px; }
+.objection-form textarea { display: block; width: 100%; min-height: 80px; margin: 7px 0; padding: 8px; }
 .workspace-panel { padding: 16px; background: white; border: 1px solid var(--line); border-radius: 16px; }
 .workspace-panel h2 { margin: 0 0 12px; font-size: 16px; }
 .workspace-panel label { font-size: 13px; color: var(--muted); }

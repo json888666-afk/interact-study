@@ -12,6 +12,7 @@ export default defineConfig({
     {
       command: 'python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000',
       url: 'http://127.0.0.1:8000/api/examples/quadratic',
+      env: { QUIZ_DB_PATH: '.local/browser-quiz.sqlite3' },
       reuseExistingServer: false,
     },
   ],

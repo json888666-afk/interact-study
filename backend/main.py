@@ -1,21 +1,49 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
-from .model import REVISION_PROMPT, SYSTEM_PROMPT, GenerationError, ModelSettings, generate_lesson
+from . import quiz_store
+from .learning import AskRequest, Explanation, ask_lesson
+from .model import REVISION_PROMPT, SYSTEM_PROMPT, GenerationError, ModelSettings, generate_lesson, model_client
+from .quizzes import router as quiz_router
 from .schemas import GenerateRequest, Lesson, LessonResponse, ReviseRequest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_IDS = {"quadratic", "recursion"}
 load_dotenv(PROJECT_ROOT / ".env")
-app = FastAPI(title="演算室")
 
 
-async def model_client():
-    async with httpx.AsyncClient(timeout=60) as client:
-        yield client
+@asynccontextmanager
+async def lifespan(_app):
+    quiz_store.initialize()
+    yield
+
+
+app = FastAPI(title="演算室", lifespan=lifespan)
+app.include_router(quiz_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_request: Request, error: RequestValidationError):
+    return JSONResponse(status_code=422, content={"detail": [
+        {key: item[key] for key in ("loc", "msg", "type")} for item in error.errors()
+    ]})
+
+
+@app.post("/api/lessons/ask", response_model=Explanation)
+async def explain(request: AskRequest, client: httpx.AsyncClient = Depends(model_client)):
+    try:
+        return await ask_lesson(request, client)
+    except GenerationError as error:
+        raise HTTPException(
+            status_code=error.status_code,
+            detail={"code": error.code, "message": str(error)},
+        ) from error
 
 
 async def request_lesson(content: str, client: httpx.AsyncClient, prompt: str):

@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 from dataclasses import dataclass
+from typing import TypeVar
 from urllib.parse import urlsplit
 
 import httpx
@@ -12,6 +13,7 @@ from .schemas import ModelResult
 MAX_RESPONSE_BYTES = 1_000_000
 MODEL_TIMEOUT_SECONDS = 60
 RESULT_ADAPTER = TypeAdapter(ModelResult)
+Result = TypeVar("Result")
 SYSTEM_PROMPT = """你是面向数学与计算机学习的中文交互教学设计助手。
 只输出一个 JSON 对象，不加 Markdown 代码围栏。按问题选择一种输出格式：
 - {"kind":"lesson","title":"简短标题","summary":"学习目标","html":"HTML 片段","css":"样式","javascript":"交互脚本"}
@@ -37,9 +39,9 @@ class ModelSettings:
     name: str
 
     @classmethod
-    def from_environment(cls):
-        return cls(*(os.getenv(key, "").strip() for key in (
-            "MODEL_BASE_URL", "MODEL_API_KEY", "MODEL_NAME"
+    def from_environment(cls, prefix: str = "MODEL"):
+        return cls(*(os.getenv(f"{prefix}_{key}", "").strip() for key in (
+            "BASE_URL", "API_KEY", "NAME"
         )))
 
 
@@ -54,6 +56,11 @@ def invalid_response():
     return GenerationError("invalid_model_response", "模型返回的内容格式不符合要求，请重试。", 502)
 
 
+async def model_client():
+    async with httpx.AsyncClient(timeout=MODEL_TIMEOUT_SECONDS) as client:
+        yield client
+
+
 async def generate_lesson(
     question: str,
     settings: ModelSettings,
@@ -61,11 +68,23 @@ async def generate_lesson(
     *,
     system_prompt: str = SYSTEM_PROMPT,
 ) -> ModelResult:
+    return await request_json(question, settings, client, system_prompt, RESULT_ADAPTER)
+
+
+async def request_json(
+    content: str | list[dict],
+    settings: ModelSettings,
+    client: httpx.AsyncClient,
+    system_prompt: str,
+    adapter: TypeAdapter[Result],
+) -> Result:
     try:
         parsed_url = urlsplit(settings.base_url)
+        port = parsed_url.port
         loopback = parsed_url.hostname in {"localhost", "127.0.0.1", "::1"}
         valid_url = (
             parsed_url.hostname
+            and (port is None or port > 0)
             and (parsed_url.scheme == "https" or (parsed_url.scheme == "http" and loopback))
             and not any((parsed_url.username, parsed_url.password, parsed_url.query, parsed_url.fragment))
         )
@@ -83,7 +102,7 @@ async def generate_lesson(
         "model": settings.name,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": question},
+                {"role": "user", "content": content},
         ],
     }
     if parsed_url.scheme == "https" and parsed_url.hostname == "api.deepseek.com":
@@ -113,6 +132,6 @@ async def generate_lesson(
 
     try:
         content = json.loads(body)["choices"][0]["message"]["content"]
-        return RESULT_ADAPTER.validate_json(content)
+        return adapter.validate_json(content)
     except (ValueError, KeyError, IndexError, TypeError, ValidationError) as error:
         raise invalid_response() from error
