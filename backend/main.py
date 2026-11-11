@@ -4,8 +4,8 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 
-from .model import GenerationError, ModelSettings, generate_lesson
-from .schemas import GenerateRequest, Lesson, LessonResponse
+from .model import REVISION_PROMPT, SYSTEM_PROMPT, GenerationError, ModelSettings, generate_lesson
+from .schemas import GenerateRequest, Lesson, LessonResponse, ReviseRequest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_IDS = {"quadratic", "recursion"}
@@ -18,16 +18,25 @@ async def model_client():
         yield client
 
 
-@app.post("/api/lessons/generate", response_model=LessonResponse)
-async def create_lesson(request: GenerateRequest, client: httpx.AsyncClient = Depends(model_client)):
+async def request_lesson(content: str, client: httpx.AsyncClient, prompt: str):
     try:
-        result = await generate_lesson(request.question, ModelSettings.from_environment(), client)
+        result = await generate_lesson(content, ModelSettings.from_environment(), client, system_prompt=prompt)
     except GenerationError as error:
         raise HTTPException(
             status_code=error.status_code,
             detail={"code": error.code, "message": str(error)},
         ) from error
     return LessonResponse(source="live", result=result)
+
+
+@app.post("/api/lessons/generate", response_model=LessonResponse)
+async def create_lesson(request: GenerateRequest, client: httpx.AsyncClient = Depends(model_client)):
+    return await request_lesson(request.question, client, SYSTEM_PROMPT)
+
+
+@app.post("/api/lessons/revise", response_model=LessonResponse)
+async def revise_lesson(request: ReviseRequest, client: httpx.AsyncClient = Depends(model_client)):
+    return await request_lesson(request.model_dump_json(), client, REVISION_PROMPT)
 
 
 @app.get("/api/examples/{example_id}", response_model=LessonResponse)

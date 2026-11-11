@@ -24,6 +24,11 @@ class Lesson(StrictModel):
     javascript: Annotated[str, bounded_text(32000)]
 
 
+class ReviseRequest(GenerateRequest):
+    instruction: Annotated[str, bounded_text(2000)]
+    lesson: Lesson
+
+
 class Clarification(StrictModel):
     kind: Literal["clarification"]
     message: Annotated[str, bounded_text(500)]

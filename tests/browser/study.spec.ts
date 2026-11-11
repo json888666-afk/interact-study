@@ -132,3 +132,53 @@ test('failed requests and clarification retain the question', async ({ page }) =
   await page.getByRole('button', { name: '编辑问题' }).click()
   await expect(page.getByLabel('你想弄懂什么？')).toHaveValue(question)
 })
+
+test('revision previews before confirmation and restores history after refresh', async ({ page }) => {
+  await page.route('**/api/lessons/revise', async (route) => {
+    const { question, instruction, lesson } = route.request().postDataJSON()
+    expect(question).toBe('递归调用栈')
+    expect(instruction).toBe('增加暂停按钮')
+    expect(lesson.title).toBe('递归调用栈')
+    await route.fulfill({ json: {
+      source: 'live',
+      result: { ...lesson, title: '可暂停的递归演示', html: '<button id="pause">暂停</button>', css: '',
+        javascript: 'document.querySelector("#pause").onclick = (event) => { event.target.textContent = "继续"; };' },
+    } })
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: /递归调用栈/ }).click()
+  await page.getByLabel('你想怎样调整这个演示？').fill('增加暂停按钮')
+  await page.getByRole('button', { name: '发送修改' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('递归调用栈')
+  await expect(page.getByText(/候选预览/)).toBeVisible()
+  await page.frameLocator('iframe').getByRole('button', { name: '暂停' }).click()
+  await expect(page.frameLocator('iframe').getByRole('button', { name: '继续' })).toBeVisible()
+  await page.getByRole('button', { name: '确认此版本' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('可暂停的递归演示')
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('可暂停的递归演示')
+  await page.getByRole('button', { name: '恢复版本 1' }).click()
+  await expect(page.frameLocator('iframe').getByRole('button', { name: '下一步' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('递归调用栈')
+  await expect(page.getByRole('button', { name: '恢复版本 2' })).toBeVisible()
+})
+
+test('a broken candidate cannot be accepted or overwrite the current version', async ({ page }) => {
+  await page.route('**/api/lessons/revise', async (route) => {
+    const { lesson } = route.request().postDataJSON()
+    await route.fulfill({ json: {
+      source: 'live', result: { ...lesson, javascript: 'throw new Error("候选脚本失败")' },
+    } })
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: /二次函数参数/ }).click()
+  await page.getByLabel('你想怎样调整这个演示？').fill('调整线条颜色')
+  await page.getByRole('button', { name: '发送修改' }).click()
+  await expect(page.getByRole('alert')).toContainText('候选脚本失败')
+  await expect(page.getByRole('button', { name: '确认此版本' })).toBeDisabled()
+  await page.getByRole('button', { name: '放弃候选版本' }).click()
+  await expect(page.frameLocator('iframe').getByRole('slider')).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('二次函数参数')
+  await expect(page.getByText('版本 2', { exact: true })).toHaveCount(0)
+})

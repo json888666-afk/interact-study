@@ -46,7 +46,26 @@ a { color: inherit; }
 .example-copy { display: grid; flex: 1; gap: 4px; }
 .subject, .description { color: var(--muted); font-size: 12px; line-height: 1.4; }
 .example-arrow { align-self: flex-start; color: var(--green); }
-.study { padding-top: 24px; }
+.study { padding-top: 24px; width: min(100% - 40px, 1120px); }
+.resume-button { margin-top: 10px; overflow-wrap: anywhere; }
+.lesson-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); align-items: start; gap: 16px; }
+.workspace-canvas, .workspace-sidebar { min-width: 0; }
+.workspace-sidebar { display: grid; gap: 14px; }
+.workspace-panel { padding: 16px; background: white; border: 1px solid var(--line); border-radius: 16px; }
+.workspace-panel h2 { margin: 0 0 12px; font-size: 16px; }
+.workspace-panel label { font-size: 13px; color: var(--muted); }
+.workspace-panel textarea { display: block; resize: vertical; width: 100%; min-height: 88px; border: 1px solid var(--line); border-radius: 9px; padding: 9px; margin: 7px 0 10px; background: #f8faf7; color: var(--ink); }
+.workspace-status { margin-bottom: 0; font-size: 13px; overflow-wrap: anywhere; }
+.candidate-notice { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; align-items: center; padding: 8px 12px; margin-bottom: 8px; background: #e4f0e6; border-radius: 10px; font-size: 13px; overflow-wrap: anywhere; }
+.feedback-list, .version-list { list-style: none; padding: 0; margin: 0 0 12px; font-size: 13px; }
+.feedback-list { max-height: 230px; overflow: auto; }
+.feedback-list li, .version-list li { border-top: 1px solid var(--line); padding: 9px 0; overflow-wrap: anywhere; }
+.feedback-list p, .version-list p { margin: 4px 0 0; color: var(--muted); }
+.version-list { margin-bottom: 0; }
+.version-list li { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.version-list li > div { min-width: 0; }
+.version-list p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-list li > span, .version-list li > button { flex-shrink: 0; }
 .back-button, .quiet-button { color: var(--green); background: transparent; border: 0; border-radius: 7px; padding: 7px 9px; font-size: 14px; }
 .back-button { margin-left: -9px; }
 .back-button:hover, .quiet-button:hover { background: #e7f0e8; }
@@ -72,5 +91,8 @@ a { color: inherit; }
   .example-grid { grid-template-columns: 1fr; }
   .question-card { padding: 16px; }
   .preview-shell iframe { height: 610px; }
+}
+@media (max-width: 840px) {
+  .lesson-workspace { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

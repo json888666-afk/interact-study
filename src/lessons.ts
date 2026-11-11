@@ -31,6 +31,20 @@ export async function fetchLesson(request: LessonRequest, signal: AbortSignal): 
         signal,
       })
 
+  return readLessonResponse(response)
+}
+
+export async function reviseLesson(question: string, instruction: string, lesson: Lesson, signal: AbortSignal) {
+  const response = await fetch('/api/lessons/revise', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, instruction, lesson }),
+    signal,
+  })
+  return readLessonResponse(response)
+}
+
+async function readLessonResponse(response: Response): Promise<LessonResponse> {
   const body = await response.json().catch(() => null)
   if (!response.ok) {
     throw new Error(typeof body?.detail?.message === 'string'

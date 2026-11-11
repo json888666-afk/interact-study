@@ -110,3 +110,28 @@ def test_missing_config_and_invalid_question(client, monkeypatch):
     assert client.post(URL, json={"question": "   "}).status_code == 422
     assert client.post(URL, json={"question": "a" * 2001}).status_code == 422
     assert client.get("/api/examples/unknown").status_code == 404
+
+
+def test_revision_sends_original_question_instruction_and_selected_version(client, set_upstream):
+    lesson = client.get("/api/examples/recursion").json()["result"]
+    updated = {**lesson, "title": "可暂停的递归演示"}
+
+    def upstream(request):
+        payload = json.loads(request.content)
+        assert "待修改的数据" in payload["messages"][0]["content"]
+        assert json.loads(payload["messages"][1]["content"]) == {
+            "question": "讲解递归",
+            "instruction": "增加暂停按钮",
+            "lesson": lesson,
+        }
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(updated)}}]})
+
+    set_upstream(upstream)
+    response = client.post("/api/lessons/revise", json={
+        "question": "讲解递归", "instruction": " 增加暂停按钮 ", "lesson": lesson,
+    })
+    assert response.status_code == 200
+    assert response.json() == {"source": "live", "result": updated}
+    assert client.post("/api/lessons/revise", json={
+        "question": "讲解递归", "instruction": "  ", "lesson": lesson,
+    }).status_code == 422

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createRoot } from 'react-dom/client'
 import { examples, fetchLesson, type LessonRequest, type LessonResponse } from './lessons'
-import { Preview } from './preview'
+import { LessonWorkspace } from './lesson-workspace'
+import { createStudySession, currentVersion, loadStudySession, saveStudySession, type StudySession } from './study-session'
 import './styles.css'
 
 type StudyState =
@@ -10,15 +11,19 @@ type StudyState =
   | { kind: 'response'; data: LessonResponse }
 
 function App() {
-  const [question, setQuestion] = useState('')
-  const [request, setRequest] = useState<LessonRequest | null>(null)
-  const [state, setState] = useState<StudyState>({ kind: 'loading' })
-  const [studying, setStudying] = useState(false)
+  const [session, setSession] = useState(loadStudySession)
+  const [question, setQuestion] = useState(() => session?.request.question ?? '')
+  const [request, setRequest] = useState<LessonRequest | null>(() => session?.request ?? null)
+  const [state, setState] = useState<StudyState>(() => session
+    ? { kind: 'response', data: { source: currentVersion(session).source, result: currentVersion(session).lesson } }
+    : { kind: 'loading' })
+  const [studying, setStudying] = useState(() => Boolean(session && window.location.pathname === '/study'))
+  const [storageError, setStorageError] = useState('')
   const active = useRef<AbortController | null>(null)
   const studyHeading = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
-    if (window.location.pathname === '/study') window.history.replaceState(null, '', '/')
+    if (window.location.pathname === '/study' && !studying) window.history.replaceState(null, '', '/')
     const onNavigate = () => setStudying(window.location.pathname === '/study')
     window.addEventListener('popstate', onNavigate)
     return () => {
@@ -32,7 +37,35 @@ function App() {
   }, [studying])
 
   function home() {
-    if (studying) window.history.back()
+    if (!studying) return
+    if (window.history.state?.study) window.history.back()
+    else {
+      window.history.replaceState(null, '', '/')
+      setStudying(false)
+    }
+  }
+
+  function enterStudy() {
+    if (window.location.pathname !== '/study') window.history.pushState({ study: true }, '', '/study')
+    setStudying(true)
+  }
+
+  function save(session: StudySession) {
+    setSession(session)
+    try {
+      saveStudySession(session)
+      setStorageError('')
+    } catch {
+      setStorageError('浏览器无法保存此版本，关闭或刷新页面后可能无法恢复。')
+    }
+  }
+
+  function resume(session: StudySession) {
+    active.current?.abort()
+    const version = currentVersion(session)
+    setRequest(session.request)
+    setState({ kind: 'response', data: { source: version.source, result: version.lesson } })
+    enterStudy()
   }
 
   async function open(next: LessonRequest) {
@@ -41,11 +74,13 @@ function App() {
     active.current = controller
     setRequest(next)
     setState({ kind: 'loading' })
-    if (window.location.pathname !== '/study') window.history.pushState(null, '', '/study')
-    setStudying(true)
+    enterStudy()
     try {
       const data = await fetchLesson(next, controller.signal)
-      if (!controller.signal.aborted) setState({ kind: 'response', data })
+      if (!controller.signal.aborted) {
+        if (data.result.kind === 'lesson') save(createStudySession(next, data.result))
+        setState({ kind: 'response', data })
+      }
     } catch (error) {
       if (!controller.signal.aborted) {
         const message = error instanceof TypeError ? '无法连接学习服务，请确认后端已启动。'
@@ -62,6 +97,8 @@ function App() {
   }
 
   const result = state.kind === 'response' ? state.data.result : null
+  const workspace = result?.kind === 'lesson' ? session : null
+  const version = workspace ? currentVersion(workspace) : null
 
   return (
     <>
@@ -77,10 +114,10 @@ function App() {
         <main className="study page">
           <button type="button" className="back-button" onClick={home}>← 返回问题首页</button>
           <div className="study-header">
-            <p className="source">{(state.kind === 'response' ? state.data.source : request.source) === 'example'
+            <p className="source">{(version?.source ?? (state.kind === 'response' ? state.data.source : request.source)) === 'example'
               ? '预置案例' : '实时生成'}</p>
-            <h1 ref={studyHeading} tabIndex={-1}>{result?.kind === 'lesson' ? result.title : request.question}</h1>
-            {result?.kind === 'lesson' && <p>{result.summary}</p>}
+            <h1 ref={studyHeading} tabIndex={-1}>{version?.lesson.title ?? request.question}</h1>
+            {version && <p>{version.lesson.summary}</p>}
           </div>
           {state.kind === 'loading' && <div className="state-panel" role="status"><span className="spinner" />正在准备教学页面…</div>}
           {state.kind === 'error' && <div className="state-panel error-panel" role="alert">
@@ -90,7 +127,8 @@ function App() {
           {result && result.kind !== 'lesson' && <div className="state-panel" role="status">
             <p>{result.message}</p><button type="button" className="primary-button" onClick={home}>编辑问题</button>
           </div>}
-          {result?.kind === 'lesson' && <Preview lesson={result} onRegenerate={() => void open(request)} />}
+          {workspace && <LessonWorkspace key={workspace.id} session={workspace} onSave={save} />}
+          {workspace && storageError && <p role="alert">{storageError}</p>}
         </main>
       ) : (
         <main className="home page">
@@ -107,6 +145,9 @@ function App() {
               <button className="primary-button" type="submit" disabled={!question.trim()}>生成演示 <span aria-hidden="true">→</span></button>
             </div>
           </form>
+          {session && <button type="button" className="quiet-button resume-button" onClick={() => resume(session)}>
+            继续上次学习 · {currentVersion(session).lesson.title}
+          </button>}
           <section className="examples" aria-labelledby="examples-heading">
             <h2 id="examples-heading">预置案例</h2>
             <div className="example-grid">

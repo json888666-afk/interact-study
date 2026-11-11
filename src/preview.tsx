@@ -70,12 +70,16 @@ body { margin: 0; background: #fff; }
 
 type PreviewStatus = { kind: 'loading' | 'ready' } | { kind: 'error'; message: string }
 
-function PreviewFrame({ lesson }: { lesson: Lesson }) {
+function PreviewFrame({ lesson, onReadyChange }: { lesson: Lesson; onReadyChange: (ready: boolean) => void }) {
   const iframe = useRef<HTMLIFrameElement>(null)
   const [previewId] = useState(() => crypto.randomUUID().replace(/-/g, ''))
   const [status, setStatus] = useState<PreviewStatus>({ kind: 'loading' })
   const [listening, setListening] = useState(false)
   const srcDoc = useMemo(() => createDocument(lesson, previewId, window.location.origin), [lesson, previewId])
+
+  useEffect(() => {
+    onReadyChange(status.kind === 'ready')
+  }, [status.kind, onReadyChange])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setStatus((current) => current.kind === 'loading'
@@ -110,18 +114,27 @@ function PreviewFrame({ lesson }: { lesson: Lesson }) {
   )
 }
 
-export function Preview({ lesson, onRegenerate }: { lesson: Lesson; onRegenerate: () => void }) {
+export function Preview({ lesson, onRegenerate, onAccept }: {
+  lesson: Lesson
+  onRegenerate: () => void
+  onAccept?: () => void
+}) {
   const [attempt, setAttempt] = useState(0)
+  const [ready, setReady] = useState(false)
   return (
     <section className="preview-shell" aria-label="教学预览">
       <div className="preview-toolbar">
         <span><span className="status-dot" />交互预览</span>
         <div>
-          <button type="button" className="quiet-button" onClick={() => setAttempt((value) => value + 1)}>重新运行</button>
+          <button type="button" className="quiet-button" onClick={() => {
+            setReady(false)
+            setAttempt((value) => value + 1)
+          }}>重新运行</button>
           <button type="button" className="quiet-button" onClick={onRegenerate}>重新加载内容</button>
+          {onAccept && <button type="button" className="primary-button" disabled={!ready} onClick={onAccept}>确认此版本</button>}
         </div>
       </div>
-      <PreviewFrame key={attempt} lesson={lesson} />
+      <PreviewFrame key={attempt} lesson={lesson} onReadyChange={setReady} />
     </section>
   )
 }
