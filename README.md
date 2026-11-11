@@ -64,6 +64,8 @@ SQLite 默认保存在项目的 `.local/quiz.sqlite3`。从 E 盘工作区运行
 
 「质疑此题」使用独立审核服务，在 `.env` 填写 `REVIEW_MODEL_BASE_URL`、`REVIEW_MODEL_API_KEY` 和 `REVIEW_MODEL_NAME` 后重启后端。审核确认有误时，只替换这一题，其余作答继续有效。常规问答、出题和判分使用已有配置即可。
 
+审核也可以使用 DeepSeek 官方 Flash，地址为 `https://api.deepseek.com`，模型名为 `deepseek-flash`。出题与复核使用各自的密钥和提示词。
+
 ## 验证
 
 以下命令在未启动开发服务器时运行。浏览器测试会自动启动前后端，需要本机安装 Microsoft Edge。

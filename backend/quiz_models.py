@@ -139,7 +139,8 @@ async def review_challenge(question: dict, objection: str, client: httpx.AsyncCl
     generator = ModelSettings.from_environment()
     if not all((settings.base_url, settings.api_key, settings.name)):
         raise GenerationError("review_not_configured", "请先配置独立审核模型，再重试质疑。", 503)
-    if settings.base_url.rstrip("/") == generator.base_url.rstrip("/") and settings.name == generator.name:
-        raise GenerationError("review_not_independent", "请为题目质疑配置与出题模型不同的审核模型。", 503)
+    if (settings.base_url.rstrip("/") == generator.base_url.rstrip("/")
+            and settings.name == generator.name and settings.api_key == generator.api_key):
+        raise GenerationError("review_not_independent", "复核使用同一模型时，请配置单独的审核 API 密钥。", 503)
     content = json.dumps({"question": question, "objection": objection}, ensure_ascii=False)
     return await request_json(content, settings, client, CHALLENGE_PROMPT, CHALLENGE_REVIEW)

@@ -36,8 +36,10 @@ def client(monkeypatch):
     app.dependency_overrides.clear()
 
 
-def mock_upstream(handler):
+def mock_upstream(handler, inspect_request=None):
     def respond(request):
+        if inspect_request is not None:
+            inspect_request(request)
         payload = json.loads(request.content)
         result = handler(payload["messages"][0]["content"], payload["messages"][1]["content"], payload["model"])
         if isinstance(result, httpx.Response):
@@ -220,3 +222,33 @@ def test_failed_replacement_stays_paused_until_retry_succeeds(client):
     assert replaced["id"] != question_id and "题干漏写条件" in replaced["review"]["message"]
     assert "新题未能生成" not in replaced["review"]["message"]
     assert replacements == 2 and challenges == 1
+
+
+def test_same_model_challenge_uses_separate_key(client, monkeypatch):
+    for prefix, key in (("MODEL", "generator-key"), ("REVIEW_MODEL", "reviewer-key")):
+        monkeypatch.setenv(prefix + "_BASE_URL", "https://api.deepseek.com")
+        monkeypatch.setenv(prefix + "_NAME", "deepseek-flash")
+        monkeypatch.setenv(prefix + "_API_KEY", key)
+    keys = []
+
+    def handler(prompt, _content, model):
+        assert model == "deepseek-flash"
+        if prompt == DRAFT_PROMPT:
+            return draft()
+        if prompt == FIRST_REVIEW_PROMPT:
+            return {"answers": [item["correct"] for item in draft()["questions"]], "issues": []}
+        assert prompt == CHALLENGE_PROMPT
+        return {"verdict": "valid", "user_perspective": "条件可能被误读", "objective": "题目条件充分"}
+
+    mock_upstream(handler, lambda request: keys.append(request.headers["authorization"]))
+    owner, path, quiz = start(client)
+    question_id = quiz["questions"][0]["id"]
+    endpoint = f"{path}/questions/{question_id}/challenge"
+    assert client.post(endpoint, headers=owner, json={"objection": "需要补充条件吗？"}).status_code == 202
+    assert client.get(path, headers=owner).json()["questions"][0]["review"]["status"] == "valid"
+    assert keys == ["Bearer generator-key", "Bearer generator-key", "Bearer reviewer-key"]
+
+    monkeypatch.setenv("REVIEW_MODEL_API_KEY", "generator-key")
+    assert client.post(endpoint, headers=owner, json={"objection": "选项是否互斥？"}).status_code == 202
+    assert client.get(path, headers=owner).json()["questions"][0]["review"]["status"] == "failed"
+    assert len(keys) == 3
