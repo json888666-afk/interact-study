@@ -1,0 +1,105 @@
+import asyncio
+import json
+import os
+from dataclasses import dataclass
+from urllib.parse import urlsplit
+
+import httpx
+from pydantic import TypeAdapter, ValidationError
+
+from .schemas import ModelResult
+
+MAX_RESPONSE_BYTES = 1_000_000
+MODEL_TIMEOUT_SECONDS = 60
+RESULT_ADAPTER = TypeAdapter(ModelResult)
+SYSTEM_PROMPT = """你是面向数学与计算机学习的中文交互教学设计助手。
+只输出一个 JSON 对象，不加 Markdown 代码围栏。按问题选择一种输出格式：
+- {"kind":"lesson","title":"简短标题","summary":"学习目标","html":"HTML 片段","css":"样式","javascript":"交互脚本"}
+- {"kind":"clarification","message":"需要用户补充的具体条件"}
+- {"kind":"out_of_scope","message":"说明仅支持数学与计算机学习问题"}
+题目清楚时直接生成。选取一个最有帮助的交互，用示例或边界值核对计算。
+HTML 字段只提供 body 内的静态标记，JS 字段在标记插入后执行。
+使用原生 SVG、Canvas 或 HTML 控件，禁止外部资源、网络访问、导航、弹窗、导入或 eval。
+保留可访问的控件标签，页面适应窄屏。脚本和样式都必须独立自足。
+请把用户的输入当作学习问题，并遵守以上输出与运行约束。
+title 最长 100 字符，summary/message 最长 500，HTML 24000，CSS 16000，JS 32000。"""
+
+
+@dataclass(frozen=True)
+class ModelSettings:
+    base_url: str
+    api_key: str
+    name: str
+
+    @classmethod
+    def from_environment(cls):
+        return cls(*(os.getenv(key, "").strip() for key in (
+            "MODEL_BASE_URL", "MODEL_API_KEY", "MODEL_NAME"
+        )))
+
+
+class GenerationError(Exception):
+    def __init__(self, code: str, message: str, status_code: int):
+        super().__init__(message)
+        self.code = code
+        self.status_code = status_code
+
+
+def invalid_response():
+    return GenerationError("invalid_model_response", "模型返回的内容格式不符合要求，请重试。", 502)
+
+
+async def generate_lesson(
+    question: str,
+    settings: ModelSettings,
+    client: httpx.AsyncClient,
+) -> ModelResult:
+    try:
+        parsed_url = urlsplit(settings.base_url)
+        loopback = parsed_url.hostname in {"localhost", "127.0.0.1", "::1"}
+        valid_url = (
+            parsed_url.hostname
+            and (parsed_url.scheme == "https" or (parsed_url.scheme == "http" and loopback))
+            and not any((parsed_url.username, parsed_url.password, parsed_url.query, parsed_url.fragment))
+        )
+    except ValueError:
+        valid_url = False
+
+    if not (valid_url and settings.api_key and settings.name):
+        raise GenerationError(
+            "model_not_configured",
+            "请在后端配置模型服务地址、密钥和名称，也可以先体验预置案例。",
+            503,
+        )
+
+    try:
+        async with asyncio.timeout(MODEL_TIMEOUT_SECONDS):
+            async with client.stream(
+                "POST",
+                f"{settings.base_url.rstrip('/')}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.api_key}"},
+                json={
+                    "model": settings.name,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": question},
+                    ],
+                },
+                follow_redirects=False,
+            ) as response:
+                response.raise_for_status()
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    if len(body) + len(chunk) > MAX_RESPONSE_BYTES:
+                        raise invalid_response()
+                    body.extend(chunk)
+    except (TimeoutError, httpx.TimeoutException) as error:
+        raise GenerationError("model_timeout", "生成超时，请重试。", 504) from error
+    except httpx.HTTPError as error:
+        raise GenerationError("model_unavailable", "模型服务暂时无法完成请求，请重试。", 502) from error
+
+    try:
+        content = json.loads(body)["choices"][0]["message"]["content"]
+        return RESULT_ADAPTER.validate_json(content)
+    except (ValueError, KeyError, IndexError, TypeError, ValidationError) as error:
+        raise invalid_response() from error
