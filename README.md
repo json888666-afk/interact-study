@@ -59,4 +59,8 @@ npm.cmd run test:browser
 
 API 测试使用模拟上游。浏览器测试覆盖两个实际案例、错误重试、跨预览消息和沙箱中的 DOM、存储及外部 `fetch` 探针。正式模型联调需要有效的服务配置。运行错误与等待超时由预览组件报告。等待超时只用于界面反馈，浏览器沙箱不会为脚本提供执行时间配额。生成页面与问题保存在当前页面会话中，刷新后回到首页。
 
-本阶段的 AI 开发对话与验证记录见 [第一次迭代](docs/ai-iterations/01-lesson-preview.md)。
+## AI 协同开发记录
+
+- [动态生成与隔离预览](docs/ai-iterations/01-lesson-preview.md) · 原始对话与验收
+- [对话修改与版本管理](docs/ai-iterations/02-revision-versions.md) · 设计快照
+- [选择题与双模型审核](docs/ai-iterations/03-quiz-review.md) · 设计快照
