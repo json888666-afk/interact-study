@@ -68,9 +68,10 @@ body { margin: 0; background: #fff; }
 </html>`
 }
 
-type PreviewStatus = { kind: 'loading' | 'ready' } | { kind: 'error'; message: string }
+export type PreviewResult = { kind: 'ready' } | { kind: 'error'; message: string }
+type PreviewStatus = { kind: 'loading' } | PreviewResult
 
-function PreviewFrame({ lesson, onReadyChange }: { lesson: Lesson; onReadyChange: (ready: boolean) => void }) {
+function PreviewFrame({ lesson, onResult }: { lesson: Lesson; onResult?: (result: PreviewResult) => void }) {
   const iframe = useRef<HTMLIFrameElement>(null)
   const [previewId] = useState(() => crypto.randomUUID().replace(/-/g, ''))
   const [status, setStatus] = useState<PreviewStatus>({ kind: 'loading' })
@@ -78,8 +79,8 @@ function PreviewFrame({ lesson, onReadyChange }: { lesson: Lesson; onReadyChange
   const srcDoc = useMemo(() => createDocument(lesson, previewId, window.location.origin), [lesson, previewId])
 
   useEffect(() => {
-    onReadyChange(status.kind === 'ready')
-  }, [status.kind, onReadyChange])
+    if (status.kind !== 'loading') onResult?.(status)
+  }, [status, onResult])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setStatus((current) => current.kind === 'loading'
@@ -114,27 +115,23 @@ function PreviewFrame({ lesson, onReadyChange }: { lesson: Lesson; onReadyChange
   )
 }
 
-export function Preview({ lesson, onRegenerate, onAccept }: {
+export function Preview({ lesson, onRegenerate, onResult, busy }: {
   lesson: Lesson
   onRegenerate: () => void
-  onAccept?: () => void
+  onResult?: (result: PreviewResult) => void
+  busy: boolean
 }) {
   const [attempt, setAttempt] = useState(0)
-  const [ready, setReady] = useState(false)
   return (
-    <section className="preview-shell" aria-label="教学预览">
+    <section className="preview-shell" aria-label="交互教学">
       <div className="preview-toolbar">
-        <span><span className="status-dot" />交互预览</span>
+        <span><span className="status-dot" />交互演示</span>
         <div>
-          <button type="button" className="quiet-button" onClick={() => {
-            setReady(false)
-            setAttempt((value) => value + 1)
-          }}>重新运行</button>
-          <button type="button" className="quiet-button" onClick={onRegenerate}>重新加载内容</button>
-          {onAccept && <button type="button" className="primary-button" disabled={!ready} onClick={onAccept}>确认此版本</button>}
+          <button type="button" className="quiet-button" disabled={busy} onClick={() => setAttempt((value) => value + 1)}>重新运行</button>
+          <button type="button" className="quiet-button" disabled={busy} onClick={onRegenerate}>重新加载内容</button>
         </div>
       </div>
-      <PreviewFrame key={attempt} lesson={lesson} onReadyChange={setReady} />
+      <PreviewFrame key={attempt} lesson={lesson} onResult={onResult} />
     </section>
   )
 }

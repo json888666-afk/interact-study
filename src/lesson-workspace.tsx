@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { fetchLesson, reviseLesson } from './lessons'
-import { Preview } from './preview'
+import { Preview, type PreviewResult } from './preview'
 import { currentVersion, makeVersion, type LessonVersion, type StudySession } from './study-session'
 
 type FeedbackEntry = { id: string; instruction: string; reply: string }
@@ -8,37 +8,36 @@ type FeedbackEntry = { id: string; instruction: string; reply: string }
 export function LessonWorkspace({ session, onSave }: { session: StudySession; onSave: (session: StudySession) => void }) {
   const current = currentVersion(session)
   const [candidate, setCandidate] = useState<LessonVersion | null>(null)
-  const displayed = candidate ?? current
   const [instruction, setInstruction] = useState('')
-  const [pending, setPending] = useState(false)
+  const [requesting, setRequesting] = useState(false)
+  const pending = requesting || candidate !== null
   const [feedback, setFeedback] = useState<FeedbackEntry[]>([])
   const [error, setError] = useState('')
   const active = useRef<AbortController | null>(null)
 
   useEffect(() => () => active.current?.abort(), [])
 
+  function addFeedback(text: string, reply: string) {
+    setFeedback((items) => [...items, { id: crypto.randomUUID(), instruction: text, reply }])
+  }
+
   async function update(reload: boolean) {
-    if (active.current) return
+    if (active.current || candidate) return
     const text = reload ? '重新加载内容' : instruction.trim()
     if (!text) return
     const controller = new AbortController()
     active.current = controller
-    setPending(true)
+    setRequesting(true)
     setError('')
     try {
       const { result, source } = reload
         ? await fetchLesson(session.request, controller.signal)
-        : await reviseLesson(session.request.question, text, displayed.lesson, controller.signal)
+        : await reviseLesson(session.request.question, text, current.lesson, controller.signal)
       if (controller.signal.aborted) return
-      const entry = {
-        id: crypto.randomUUID(),
-        instruction: text,
-        reply: result.kind === 'lesson' ? '候选版本已生成，可以先预览再确认。' : result.message,
-      }
-      setFeedback((items) => [...items, entry])
       if (result.kind === 'lesson') {
         setCandidate(makeVersion(result, text, source))
-        if (!reload) setInstruction('')
+      } else {
+        addFeedback(text, result.message)
       }
     } catch (error) {
       if (!controller.signal.aborted) {
@@ -47,7 +46,7 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
       }
     } finally {
       active.current = null
-      if (!controller.signal.aborted) setPending(false)
+      if (!controller.signal.aborted) setRequesting(false)
     }
   }
 
@@ -56,11 +55,17 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
     void update(false)
   }
 
-  function accept() {
-    if (!candidate || pending) return
-    onSave({ ...session, versions: [...session.versions, candidate], currentId: candidate.id })
+  const finishUpdate = useCallback((result: PreviewResult) => {
+    if (!candidate) return
+    if (result.kind === 'ready') {
+      onSave({ ...session, versions: [...session.versions, candidate], currentId: candidate.id })
+      setInstruction((value) => value.trim() === candidate.description ? '' : value)
+      addFeedback(candidate.description, '演示已更新。旧版可从版本历史恢复。')
+    } else {
+      setError('新版加载失败，已保留当前版本。' + (result.message ? ' ' + result.message : ''))
+    }
     setCandidate(null)
-  }
+  }, [candidate, onSave, session])
 
   function restore(id: string) {
     setCandidate(null)
@@ -71,12 +76,15 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
   return (
     <div className="lesson-workspace">
       <div className="workspace-canvas">
-        {candidate && <div className="candidate-notice" role="status">
-          <span><strong>候选预览</strong> · {candidate.lesson.title} · {candidate.source === 'live' ? '实时生成' : '预置案例'}</span>
-          <button className="quiet-button" type="button" disabled={pending} onClick={() => setCandidate(null)}>放弃候选版本</button>
-        </div>}
-        <Preview key={displayed.id} lesson={displayed.lesson} onRegenerate={() => void update(true)}
-          onAccept={candidate && !pending ? accept : undefined} />
+        {(candidate ? [current, candidate] : [current]).map((version) => {
+          const staging = version.id !== current.id
+          return (
+            <div key={version.id} className={staging ? 'staged-lesson' : undefined} inert={staging}>
+              <Preview lesson={version.lesson} onRegenerate={() => void update(true)} busy={pending}
+                onResult={staging ? finishUpdate : undefined} />
+            </div>
+          )
+        })}
       </div>
       <aside className="workspace-sidebar">
         <section className="workspace-panel" aria-labelledby="revise-title">
@@ -93,7 +101,7 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
               placeholder="例如，增加一个暂停按钮。" />
             <button className="primary-button" type="submit" disabled={pending || !instruction.trim()}>发送修改</button>
           </form>
-          {pending && <p className="workspace-status" role="status">正在准备候选版本…</p>}
+          {pending && <p className="workspace-status" role="status">{candidate ? '正在加载新版演示…' : '正在生成新版演示…'}</p>}
           {error && <p className="workspace-status" role="alert">{error}</p>}
         </section>
         <section className="workspace-panel" aria-labelledby="versions-title">

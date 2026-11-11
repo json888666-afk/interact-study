@@ -135,3 +135,21 @@ def test_revision_sends_original_question_instruction_and_selected_version(clien
     assert client.post("/api/lessons/revise", json={
         "question": "讲解递归", "instruction": "  ", "lesson": lesson,
     }).status_code == 422
+
+
+def test_deepseek_requests_structured_output(client, set_upstream, monkeypatch):
+    monkeypatch.setenv("MODEL_BASE_URL", "https://api.deepseek.com")
+    monkeypatch.setenv("MODEL_NAME", "deepseek-flash")
+
+    def upstream(request):
+        assert str(request.url) == "https://api.deepseek.com/chat/completions"
+        payload = json.loads(request.content)
+        assert payload["model"] == "deepseek-flash"
+        assert payload["response_format"] == {"type": "json_object"}
+        assert payload["thinking"] == {"type": "disabled"}
+        assert payload["max_tokens"] > 0
+        content = json.dumps({"kind": "clarification", "message": "请提供函数表达式。"})
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    set_upstream(upstream)
+    assert client.post(URL, json={"question": "讲解这个函数"}).json()["result"]["kind"] == "clarification"

@@ -79,19 +79,25 @@ async def generate_lesson(
             503,
         )
 
+    payload = {
+        "model": settings.name,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": question},
+        ],
+    }
+    if parsed_url.scheme == "https" and parsed_url.hostname == "api.deepseek.com":
+        payload["response_format"] = {"type": "json_object"}
+        payload["thinking"] = {"type": "disabled"}
+        payload["max_tokens"] = 10000
+
     try:
         async with asyncio.timeout(MODEL_TIMEOUT_SECONDS):
             async with client.stream(
                 "POST",
                 f"{settings.base_url.rstrip('/')}/chat/completions",
                 headers={"Authorization": f"Bearer {settings.api_key}"},
-                json={
-                    "model": settings.name,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": question},
-                    ],
-                },
+                json=payload,
                 follow_redirects=False,
             ) as response:
                 response.raise_for_status()
