@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import { isAbsolute } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { openFixtureLesson } from './fixtures'
 
@@ -17,7 +19,10 @@ async function authenticate(page: Page, mode: '注册' | '登录', name: string)
 }
 
 test('registration, account switching, guest recovery and leaderboard', async ({ page }) => {
-  expect((await page.request.get('/.local/browser-quiz.sqlite3')).status()).toBe(403)
+  const databasePath = process.env.BROWSER_QUIZ_DB_PATH ?? '.local/browser-quiz.sqlite3'
+  expect(existsSync(databasePath)).toBe(true)
+  const publicPath = (isAbsolute(databasePath) ? '/@fs/' : '/') + databasePath.replaceAll('\\', '/')
+  expect((await page.request.get(encodeURI(publicPath))).status()).toBe(403)
   const alice = 'Alice_' + randomUUID().slice(0, 8)
   const bob = 'Bob_' + randomUUID().slice(0, 8)
   await openFixtureLesson(page, 'quadratic')

@@ -2,7 +2,7 @@
 
 来源为本次 Codex 会话的本地记录。消息按出现顺序编号，以下代码框保存可见对话文本。隐私和附件处使用方括号标记。编号空缺表示本导出范围未包含该消息。索引中的验证说明另行编写。
 
-<a id="msg-001"></a>
+<a name="msg-001"></a>
 
 ### 001 · 用户
 
@@ -10,7 +10,7 @@
 [本机环境元数据已省略]
 ````
 
-<a id="msg-002"></a>
+<a name="msg-002"></a>
 
 ### 002 · 用户
 
@@ -28,7 +28,7 @@
 
 ````
 
-<a id="msg-003"></a>
+<a name="msg-003"></a>
 
 ### 003 · Codex
 
@@ -36,7 +36,7 @@
 我先核对赛事页面和附件，确认第 4、5 题的原文，再梳理两题的实现难点、选题取舍和提交清单。
 ````
 
-<a id="msg-004"></a>
+<a name="msg-004"></a>
 
 ### 004 · Codex
 
@@ -76,7 +76,7 @@
 如果定第 5 方向，最先做的事是**建 Git 仓库、开启 AI 对话留档，然后跑通一个能单步演示的二维地图**。后面每加一个核心模块，就顺手留下一条可用于提交和录屏的真实迭代记录。
 ````
 
-<a id="msg-005"></a>
+<a name="msg-005"></a>
 
 ### 005 · 用户
 
@@ -85,7 +85,7 @@
 
 ````
 
-<a id="msg-006"></a>
+<a name="msg-006"></a>
 
 ### 006 · Codex
 
@@ -103,7 +103,7 @@
 **第一版的验收标准**可以很具体：打开页面就能用同一张地图跑出「BFS 步数更少，Dijkstra 代价更低」，改一个权重后能重新运行并解释变化。开发时从第一个模块起就保留真实的 AI 对话和 Git 提交，这样三个模块也可以分别对应提交材料里的三条迭代记录。
 ````
 
-<a id="msg-007"></a>
+<a name="msg-007"></a>
 
 ### 007 · 用户
 
@@ -112,7 +112,7 @@
 
 ````
 
-<a id="msg-008"></a>
+<a name="msg-008"></a>
 
 ### 008 · Codex
 
@@ -154,7 +154,7 @@
 我建议首版只做**两种算法、一个核心实验、一类 AI 出题**。做到评委打开就能猜一次、改一次、验证一次，再把精力放在复现指南和演示材料上。
 ````
 
-<a id="msg-009"></a>
+<a name="msg-009"></a>
 
 ### 009 · 用户
 
@@ -168,7 +168,7 @@
 
 ````
 
-<a id="msg-010"></a>
+<a name="msg-010"></a>
 
 ### 010 · 用户
 
@@ -182,7 +182,7 @@
 
 ````
 
-<a id="msg-011"></a>
+<a name="msg-011"></a>
 
 ### 011 · Codex
 
@@ -281,7 +281,7 @@ AI 返回约定格式的数据，包含工具名称、参数和教学步骤。�
 整体上，我建议把作品定位为**“面向数学与计算机的可视化交互学习 Agent”**。第一版先把一类知识点的“输入问题 → 可视化理解 → 随时追问 → 操作练习 → 即时纠错 → 评分补练”全部跑通，再增加第二类知识点，验证工具能否复用。**比起首版支持多少题，更值得展示的是同一个学生犯错之后，系统如何帮助他在下一次练习中独立做对。**
 ````
 
-<a id="msg-012"></a>
+<a name="msg-012"></a>
 
 ### 012 · 用户
 
@@ -324,7 +324,7 @@ AI对话历史导出的Prompt历史快照:
 
 ````
 
-<a id="msg-013"></a>
+<a name="msg-013"></a>
 
 ### 013 · Codex
 
@@ -332,7 +332,7 @@ AI对话历史导出的Prompt历史快照:
 我会把系统的实现方案和参赛证据留存放在一起考虑，重点梳理工具调用、逐步判题和开发记录之间的对应关系，让每个阶段都有能运行、能验证、能提交的结果。
 ````
 
-<a id="msg-014"></a>
+<a name="msg-014"></a>
 
 ### 014 · Codex
 
@@ -504,7 +504,7 @@ PDF 可以围绕三个问题组织——**你怎样约束 AI、系统怎样保�
 我建议我们下一步先把**二次函数这一条学习流程画细**，具体到用户能拖什么、提交什么、什么算错、AI 在哪一步介入。这个流程确定后，框架和首个可验收版本就能一起落地。
 ````
 
-<a id="msg-015"></a>
+<a name="msg-015"></a>
 
 ### 015 · 用户
 
@@ -514,7 +514,7 @@ PDF 可以围绕三个问题组织——**你怎样约束 AI、系统怎样保�
 
 ````
 
-<a id="msg-016"></a>
+<a name="msg-016"></a>
 
 ### 016 · Codex
 
@@ -522,7 +522,7 @@ PDF 可以围绕三个问题组织——**你怎样约束 AI、系统怎样保�
 你描述的是让 AI 动态生成整套可视化程序，用户通过对话不断修改。我之前按预设工具来设计，确实把你的范围收窄了。我会按动态代码生成来重新梳理，重点看代码运行、版本保留，以及练习判题如何衔接。
 ````
 
-<a id="msg-017"></a>
+<a name="msg-017"></a>
 
 ### 017 · Codex
 
@@ -610,7 +610,7 @@ AI 接收需求、当前代码和场景状态
 这种方案比我之前提出的预设工具更接近你的产品目标，开发重点也相应转向了**生成代码的运行环境、对话修改的版本管理，以及动态练习的可靠判定**。我认为其中最值得作为参赛主线展示的是——同一个学习问题，如何经过用户反馈变成适合他的交互讲解，再根据他的实际错误生成下一轮练习。
 ````
 
-<a id="msg-018"></a>
+<a name="msg-018"></a>
 
 ### 018 · 用户
 
@@ -627,7 +627,7 @@ Each item contains text selected from an earlier Codex response and may include 
 
 ````
 
-<a id="msg-019"></a>
+<a name="msg-019"></a>
 
 ### 019 · Codex
 
@@ -663,7 +663,7 @@ Each item contains text selected from an earlier Codex response and may include 
 这套机制也能成为参赛文档中的一个重点。我们可以展示一次真实案例——审核 AI 找出误判反例，生成 AI 修复代码，系统重新测试通过。这样既能说明 Agent 之间怎样协作，也能提供一条完整的 AI 开发与验证记录。
 ````
 
-<a id="msg-020"></a>
+<a name="msg-020"></a>
 
 ### 020 · 用户
 
@@ -672,7 +672,7 @@ Each item contains text selected from an earlier Codex response and may include 
 
 ````
 
-<a id="msg-021"></a>
+<a name="msg-021"></a>
 
 ### 021 · Codex
 
@@ -719,7 +719,7 @@ Each item contains text selected from an earlier Codex response and may include 
 例如学生指出“这两个节点距离相同，我选另一个也应该对”，核查确认后，系统修正判题规则，重新检查这一步并撤销扣分，再让学生从合法状态继续。这样的反馈处理才能真正完成纠错。
 ````
 
-<a id="msg-022"></a>
+<a name="msg-022"></a>
 
 ### 022 · 用户
 
@@ -736,7 +736,7 @@ Each item contains text selected from an earlier Codex response and may include 
 
 ````
 
-<a id="msg-023"></a>
+<a name="msg-023"></a>
 
 ### 023 · Codex
 
@@ -754,7 +754,7 @@ Each item contains text selected from an earlier Codex response and may include 
 新题准备期间显示加载状态。如果生成失败，提供重试入口。历史中只需注明旧练习因题目错误作废，方便后续排查。
 ````
 
-<a id="msg-024"></a>
+<a name="msg-024"></a>
 
 ### 024 · 用户
 
@@ -763,7 +763,7 @@ Each item contains text selected from an earlier Codex response and may include 
 
 ````
 
-<a id="msg-025"></a>
+<a name="msg-025"></a>
 
 ### 025 · Codex
 
@@ -976,7 +976,7 @@ PDF 可以控制在约 18–24 页，覆盖需求、使用流程、代码生成�
 **当前最先要落定的是生成程序与主系统的通信协议。** 它决定动态页面怎样报告状态、提交作答和保存进度。这个接口确定后，就可以实现第一条完整链路——输入问题、生成代码、本地运行、对话修改、确认保存，同时开始积累第一份参赛开发记录。
 ````
 
-<a id="msg-026"></a>
+<a name="msg-026"></a>
 
 ### 026 · 用户
 
@@ -993,7 +993,7 @@ Each item contains text selected from an earlier Codex response and may include 
 
 ````
 
-<a id="msg-027"></a>
+<a name="msg-027"></a>
 
 ### 027 · Codex
 
@@ -1046,7 +1046,7 @@ Each item contains text selected from an earlier Codex response and may include 
 我会据此把首版设计调整为 **开放式可视化学习 + 10–15 道文字选择题测评 + 错误解析与重新学习**。这更容易在参赛周期内完成，也能把主要精力留给你最看重的个性化可视化体验。
 ````
 
-<a id="msg-028"></a>
+<a name="msg-028"></a>
 
 ### 028 · 用户
 
@@ -1055,7 +1055,7 @@ Each item contains text selected from an earlier Codex response and may include 
 
 ````
 
-<a id="msg-029"></a>
+<a name="msg-029"></a>
 
 ### 029 · Codex
 
@@ -1418,7 +1418,7 @@ README 至少包含：
 生成耗时、成功率、审核发现的问题和用户练习表现，使用实现后采集的数据。**首版最终交付范围为动态可视化学习、对话修改、登录与历史记录、双模型审核选择题、自动判分、题目申诉换题，以及学习报告与补练。**
 ````
 
-<a id="msg-030"></a>
+<a name="msg-030"></a>
 
 ### 030 · 用户
 
@@ -1427,7 +1427,7 @@ README 至少包含：
 
 ````
 
-<a id="msg-031"></a>
+<a name="msg-031"></a>
 
 ### 031 · Codex
 
@@ -1435,7 +1435,7 @@ README 至少包含：
 我先检查工作区和本机开发环境，把第一步定成一个可独立验收的里程碑，并把真实 AI 对话和 Git 提交纳入交付。
 ````
 
-<a id="msg-032"></a>
+<a name="msg-032"></a>
 
 ### 032 · Codex
 
@@ -1472,7 +1472,7 @@ README 从本阶段开始维护，逐步补齐环境、依赖、变量和启动�
 </proposed_plan>
 ````
 
-<a id="msg-033"></a>
+<a name="msg-033"></a>
 
 ### 033 · 用户
 
@@ -1480,7 +1480,7 @@ README 从本阶段开始维护，逐步补齐环境、依赖、变量和启动�
 [本机环境元数据已省略]
 ````
 
-<a id="msg-034"></a>
+<a name="msg-034"></a>
 
 ### 034 · 用户
 
@@ -1518,7 +1518,7 @@ README 从本阶段开始维护，逐步补齐环境、依赖、变量和启动�
 
 ````
 
-<a id="msg-035"></a>
+<a name="msg-035"></a>
 
 ### 035 · Codex
 
@@ -1526,7 +1526,7 @@ README 从本阶段开始维护，逐步补齐环境、依赖、变量和启动�
 我先确认工作区状态，并读取 Sites 技能中关于本地仓库的说明。随后按三个里程碑提交，最后用浏览器验证预置案例、错误提示和预览隔离。
 ````
 
-<a id="msg-036"></a>
+<a name="msg-036"></a>
 
 ### 036 · Codex
 
@@ -1534,7 +1534,7 @@ README 从本阶段开始维护，逐步补齐环境、依赖、变量和启动�
 项目骨架和生成接口已分别提交。两个预置案例已接入同一套响应格式。接下来把它们接到学习页，并验证预览出错时，用户能保留问题并重试。
 ````
 
-<a id="msg-037"></a>
+<a name="msg-037"></a>
 
 ### 037 · Codex
 
@@ -1542,7 +1542,7 @@ README 从本阶段开始维护，逐步补齐环境、依赖、变量和启动�
 构建已通过，12 个 API 测试和 6 个 Edge 测试也通过了。两个案例都能实际操作，浏览器还验证了主页面 DOM、存储和外部 `fetch` 的隔离。现在补齐复现说明和真实开发记录，再从干净检出验证安装。
 ````
 
-<a id="msg-038"></a>
+<a name="msg-038"></a>
 
 ### 038 · Codex
 
@@ -1556,7 +1556,7 @@ README 从本阶段开始维护，逐步补齐环境、依赖、变量和启动�
 代码已分三次提交，工作区干净。提交使用仓库级占位邮箱。参赛材料已开始留存，[第一阶段开发记录]([项目目录]/docs/ai-iterations/01-lesson-preview.md)包含真实对话摘录、对应提交和验证结果。
 ````
 
-<a id="msg-039"></a>
+<a name="msg-039"></a>
 
 ### 039 · 用户
 
@@ -1577,7 +1577,7 @@ AI对话历史导出的Prompt历史快照:
 
 ````
 
-<a id="msg-040"></a>
+<a name="msg-040"></a>
 
 ### 040 · Codex
 
@@ -1585,7 +1585,7 @@ AI对话历史导出的Prompt历史快照:
 我先核对当前仓库的提交记录、远端和 AI 留档，区分哪些已经可以作为阶段版本提交，哪些还需要为正式参赛补齐。
 ````
 
-<a id="msg-041"></a>
+<a name="msg-041"></a>
 
 ### 041 · Codex
 
@@ -1599,7 +1599,7 @@ AI对话历史导出的Prompt历史快照:
 所以，**现在可以推仓库留存第一版**。如果你说的是赛事官网的正式提交，这一版的 2.1 材料还没齐。
 ````
 
-<a id="msg-042"></a>
+<a name="msg-042"></a>
 
 ### 042 · 用户
 
@@ -1608,7 +1608,7 @@ AI对话历史导出的Prompt历史快照:
 
 ````
 
-<a id="msg-043"></a>
+<a name="msg-043"></a>
 
 ### 043 · Codex
 
@@ -1616,7 +1616,7 @@ AI对话历史导出的Prompt历史快照:
 我先确认当前登录的 GitHub 账号，并检查待推送的文件和历史。首版按私有仓库推送，正式送审时可以开放评审权限。
 ````
 
-<a id="msg-044"></a>
+<a name="msg-044"></a>
 
 ### 044 · Codex
 
@@ -1626,7 +1626,7 @@ AI对话历史导出的Prompt历史快照:
 正式送审前，还需开放评审访问权限，并补齐至少 3 条完整的 Prompt 迭代链。
 ````
 
-<a id="msg-045"></a>
+<a name="msg-045"></a>
 
 ### 045 · 用户
 
@@ -1635,7 +1635,7 @@ AI对话历史导出的Prompt历史快照:
 
 ````
 
-<a id="msg-046"></a>
+<a name="msg-046"></a>
 
 ### 046 · Codex
 
@@ -1643,7 +1643,7 @@ AI对话历史导出的Prompt历史快照:
 应该补。我会把这次项目相关的原始对话补成一份本地快照，关联现有 Git 提交，并标清哪些记录是方案讨论、哪些是实际实现和验证。
 ````
 
-<a id="msg-047"></a>
+<a name="msg-047"></a>
 
 ### 047 · 用户
 
@@ -1652,7 +1652,7 @@ AI对话历史导出的Prompt历史快照:
 
 ````
 
-<a id="msg-048"></a>
+<a name="msg-048"></a>
 
 ### 048 · 用户
 
@@ -1661,7 +1661,7 @@ AI对话历史导出的Prompt历史快照:
 
 ````
 
-<a id="msg-049"></a>
+<a name="msg-049"></a>
 
 ### 049 · Codex
 
@@ -1679,7 +1679,7 @@ AI对话历史导出的Prompt历史快照:
 赛道选择、确认开始、推仓库等流程性对话可以省略。每条链尽量保留关键轮次的完整原文，附上对应提交和验证结果。**目前第一阶段有脚本故障注入测试，可以作为验证证据。** 如果最终要展示「你如何引导 AI 修复 Bug」，应选后续开发中实际发生、由你反馈并复测的问题。
 ````
 
-<a id="msg-050"></a>
+<a name="msg-050"></a>
 
 ### 050 · 用户
 
@@ -1688,7 +1688,7 @@ AI对话历史导出的Prompt历史快照:
 
 ````
 
-<a id="msg-051"></a>
+<a name="msg-051"></a>
 
 ### 051 · Codex
 
@@ -1696,7 +1696,7 @@ AI对话历史导出的Prompt历史快照:
 我先核对能取得哪些对话原文，再把快照整理、提交和推送写成一套可执行的计划。当前处于计划模式，文件和远端仓库暂不改动。
 ````
 
-<a id="msg-052"></a>
+<a name="msg-052"></a>
 
 ### 052 · Codex
 
@@ -1721,7 +1721,7 @@ AI对话历史导出的Prompt历史快照:
 </proposed_plan>
 ````
 
-<a id="msg-053"></a>
+<a name="msg-053"></a>
 
 ### 053 · 用户
 
@@ -1747,7 +1747,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-054"></a>
+<a name="msg-054"></a>
 
 ### 054 · Codex
 
@@ -1755,7 +1755,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我先按计划整理并推送三组快照。确认远端提交后，再接着实现对话修改、候选预览和版本回退，后续实现证据单独记录。
 ````
 
-<a id="msg-055"></a>
+<a name="msg-055"></a>
 
 ### 055 · Codex
 
@@ -1763,7 +1763,7 @@ PLEASE IMPLEMENT THIS PLAN:
 三组快照已独立提交，GitHub 上的 `main` 已核对到 `34f71d5`。接下来实现文字修改请求。模型返回的内容先作为候选预览，用户确认后才替换当前版本。
 ````
 
-<a id="msg-056"></a>
+<a name="msg-056"></a>
 
 ### 056 · Codex
 
@@ -1771,7 +1771,7 @@ PLEASE IMPLEMENT THIS PLAN:
 第二阶段已跑通。候选版本可以先操作，确认后会保存，刷新后也能恢复旧版本。13 项 API 测试和 8 项浏览器测试通过，其中一项验证了候选脚本报错时无法确认，当前版本仍可恢复。
 ````
 
-<a id="msg-057"></a>
+<a name="msg-057"></a>
 
 ### 057 · Codex
 
@@ -1783,7 +1783,7 @@ PLEASE IMPLEMENT THIS PLAN:
 构建、**13 项 API 测试和 8 项浏览器测试**全部通过。候选生成使用模拟模型验证，真实模型联调仍需配置。可打开 [本地预览](http://127.0.0.1:5173/) 查看第二阶段界面。
 ````
 
-<a id="msg-058"></a>
+<a name="msg-058"></a>
 
 ### 058 · 用户
 
@@ -1792,7 +1792,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-059"></a>
+<a name="msg-059"></a>
 
 ### 059 · Codex
 
@@ -1800,7 +1800,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我先核对 DeepSeek 官方的模型 ID 和接口格式，再结合目前的确认流程判断哪里可以简化。
 ````
 
-<a id="msg-060"></a>
+<a name="msg-060"></a>
 
 ### 060 · Codex
 
@@ -1820,7 +1820,7 @@ MODEL_API_KEY=在本机填写你的密钥
 填好后重启后端。接入时我建议启用 DeepSeek 的 JSON 输出，让后端更稳定地解析生成结果。**先用一条现场问题跑通真实生成和一次修改，再改成自动切换**，这样能分别验证 API 返回和页面更新。 [DeepSeek JSON 输出文档](https://api-docs.deepseek.com/guides/json_mode/)
 ````
 
-<a id="msg-061"></a>
+<a name="msg-061"></a>
 
 ### 061 · 用户
 
@@ -1837,7 +1837,7 @@ Each item contains text selected from an earlier Codex response and may include 
 
 ````
 
-<a id="msg-062"></a>
+<a name="msg-062"></a>
 
 ### 062 · Codex
 
@@ -1851,7 +1851,7 @@ Each item contains text selected from an earlier Codex response and may include 
 这两项也可以一起实现、一起验收。现场演示时，你只需要**输入问题 → 查看生成结果 → 提出修改 → 看画布自动更新**。
 ````
 
-<a id="msg-063"></a>
+<a name="msg-063"></a>
 
 ### 063 · 用户
 
@@ -1863,7 +1863,7 @@ Each item contains text selected from an earlier Codex response and may include 
 
 ````
 
-<a id="msg-064"></a>
+<a name="msg-064"></a>
 
 ### 064 · Codex
 
@@ -1871,7 +1871,7 @@ Each item contains text selected from an earlier Codex response and may include 
 我会一起实现真实 DeepSeek 调用和新版自动切换。密钥只写入本机忽略的 `.env`。新版加载失败时，学习页会保留当前可用版本。
 ````
 
-<a id="msg-065"></a>
+<a name="msg-065"></a>
 
 ### 065 · Codex
 
@@ -1879,7 +1879,7 @@ Each item contains text selected from an earlier Codex response and may include 
 DeepSeek 的真实生成和修改请求都成功返回了教学页面。自动切换与失败回退的浏览器测试也已通过。我再用真实模型从浏览器跑一遍，确认生成的页面能实际操作。
 ````
 
-<a id="msg-066"></a>
+<a name="msg-066"></a>
 
 ### 066 · Codex
 
@@ -1893,7 +1893,7 @@ DeepSeek 的真实生成和修改请求都成功返回了教学页面。自动�
 密钥只写入了被 Git 忽略的本机 `.env`。由于它已出现在聊天里，建议在 DeepSeek 控制台轮换密钥，更新 `.env` 后重启后端。
 ````
 
-<a id="msg-067"></a>
+<a name="msg-067"></a>
 
 ### 067 · 用户
 
@@ -1902,7 +1902,7 @@ DeepSeek 的真实生成和修改请求都成功返回了教学页面。自动�
 
 ````
 
-<a id="msg-068"></a>
+<a name="msg-068"></a>
 
 ### 068 · Codex
 
@@ -1910,7 +1910,7 @@ DeepSeek 的真实生成和修改请求都成功返回了教学页面。自动�
 我会先核对待推送的两次提交，确认 `.env` 和密钥都没有进入 Git，再推到现有私有仓库。
 ````
 
-<a id="msg-069"></a>
+<a name="msg-069"></a>
 
 ### 069 · Codex
 
@@ -1918,7 +1918,7 @@ DeepSeek 的真实生成和修改请求都成功返回了教学页面。自动�
 GitHub 的 API 可以访问，但两次 Git 推送都在连接 `github.com` 时超时，远端还停在上一版。我会检查是否有可用的 GitHub 连接路径，再重试正常推送。
 ````
 
-<a id="msg-070"></a>
+<a name="msg-070"></a>
 
 ### 070 · Codex
 
@@ -1931,7 +1931,7 @@ GitHub 的 API 可以访问，但两次 Git 推送都在连接 `github.com` 时�
 已核对远端与本地一致，工作区干净。`.env` 和 API 密钥未进入 Git。
 ````
 
-<a id="msg-071"></a>
+<a name="msg-071"></a>
 
 ### 071 · 用户
 
@@ -1940,7 +1940,7 @@ GitHub 的 API 可以访问，但两次 Git 推送都在连接 `github.com` 时�
 
 ````
 
-<a id="msg-072"></a>
+<a name="msg-072"></a>
 
 ### 072 · Codex
 
@@ -1948,7 +1948,7 @@ GitHub 的 API 可以访问，但两次 Git 推送都在连接 `github.com` 时�
 我先核对代码、测试和 Git 记录，再按我们确定的学习、练习、账户和参赛交付目标列出已完成与待完成项。
 ````
 
-<a id="msg-073"></a>
+<a name="msg-073"></a>
 
 ### 073 · Codex
 
@@ -1992,7 +1992,7 @@ GitHub 的 API 可以访问，但两次 Git 推送都在连接 `github.com` 时�
 **下一步建议先补齐“纯文字教学问答 + 截图提问”**，让学习页同时支持理解知识和修改演示。随后实现选择题、独立审核和测评，形成第一次完整的“学习 → 检查理解 → 返回学习”流程。
 ````
 
-<a id="msg-074"></a>
+<a name="msg-074"></a>
 
 ### 074 · 用户
 
@@ -2001,7 +2001,7 @@ GitHub 的 API 可以访问，但两次 Git 推送都在连接 `github.com` 时�
 
 ````
 
-<a id="msg-075"></a>
+<a name="msg-075"></a>
 
 ### 075 · Codex
 
@@ -2009,7 +2009,7 @@ GitHub 的 API 可以访问，但两次 Git 推送都在连接 `github.com` 时�
 我先核对学习页、版本保存和模型接口，确定问答、出题和返回学习怎样接成一条流程，再确认独立审核的接入方式。
 ````
 
-<a id="msg-076"></a>
+<a name="msg-076"></a>
 
 ### 076 · Codex
 
@@ -2041,7 +2041,7 @@ GitHub 的 API 可以访问，但两次 Git 推送都在连接 `github.com` 时�
 </proposed_plan>
 ````
 
-<a id="msg-077"></a>
+<a name="msg-077"></a>
 
 ### 077 · 用户
 
@@ -2051,7 +2051,7 @@ GitHub 的 API 可以访问，但两次 Git 推送都在连接 `github.com` 时�
 
 ````
 
-<a id="msg-078"></a>
+<a name="msg-078"></a>
 
 ### 078 · Codex
 
@@ -2085,7 +2085,7 @@ DeepSeek Flash 负责教学问答和出题。**只有用户对某道题提交质
 </proposed_plan>
 ````
 
-<a id="msg-079"></a>
+<a name="msg-079"></a>
 
 ### 079 · 用户
 
@@ -2102,7 +2102,7 @@ DeepSeek Flash 负责教学问答和出题。**只有用户对某道题提交质
 
 ````
 
-<a id="msg-080"></a>
+<a name="msg-080"></a>
 
 ### 080 · Codex
 
@@ -2141,7 +2141,7 @@ DeepSeek Flash 负责教学问答、出题和初审。**只有用户主动质疑
 </proposed_plan>
 ````
 
-<a id="msg-081"></a>
+<a name="msg-081"></a>
 
 ### 081 · 用户
 
@@ -2188,7 +2188,7 @@ DeepSeek Flash 负责教学问答、出题和初审。**只有用户主动质疑
 
 ````
 
-<a id="msg-082"></a>
+<a name="msg-082"></a>
 
 ### 082 · Codex
 
@@ -2196,7 +2196,7 @@ DeepSeek Flash 负责教学问答、出题和初审。**只有用户主动质疑
 我会先接通学习问答和题组生成，再实现作答恢复、报告和单题质疑。SQLite 会默认写入 E 盘，独立审核服务只在用户提交质疑时调用。
 ````
 
-<a id="msg-083"></a>
+<a name="msg-083"></a>
 
 ### 083 · Codex
 
@@ -2204,7 +2204,7 @@ DeepSeek Flash 负责教学问答、出题和初审。**只有用户主动质疑
 出题、初审和质疑复核的后端路径已分开。现在把它们接到学习页，并检查单题替换后，旧答案是否失效、其他题目的作答是否保留。
 ````
 
-<a id="msg-084"></a>
+<a name="msg-084"></a>
 
 ### 084 · Codex
 
@@ -2212,7 +2212,7 @@ DeepSeek Flash 负责教学问答、出题和初审。**只有用户主动质疑
 真实 DeepSeek 已通过文字问答和截图问答，并完成了一组 13 道题的出题与初审。独立审核配置目前为空，质疑成立、不成立和审核失败这三种分支已用模拟服务验证。接下来跑浏览器里的刷新续答和返回学习流程。
 ````
 
-<a id="msg-085"></a>
+<a name="msg-085"></a>
 
 ### 085 · Codex
 
@@ -2228,7 +2228,7 @@ DeepSeek Flash 负责教学问答、出题和初审。**只有用户主动质疑
 本地提交为 `e93c46a`，尚未推送。[第三组参赛记录]([项目目录]/docs/ai-iterations/03-quiz-review.md)已补上设计调整、实际提问和验收证据。
 ````
 
-<a id="msg-086"></a>
+<a name="msg-086"></a>
 
 ### 086 · 用户
 
@@ -2238,7 +2238,7 @@ apikey是[凭据已脱敏]
 
 ````
 
-<a id="msg-087"></a>
+<a name="msg-087"></a>
 
 ### 087 · Codex
 
@@ -2246,7 +2246,7 @@ apikey是[凭据已脱敏]
 我会把第二把密钥配置到本机 `.env`，让质疑复核用单独的凭据调用 DeepSeek Flash，并验证真实请求。两路会使用同一个模型，复核仍是一次单独调用。
 ````
 
-<a id="msg-088"></a>
+<a name="msg-088"></a>
 
 ### 088 · Codex
 
@@ -2258,7 +2258,7 @@ apikey是[凭据已脱敏]
 新密钥只写入本机 `.env`，未进入 Git。由于它已出现在聊天里，建议在 DeepSeek 控制台轮换后更新本机配置。
 ````
 
-<a id="msg-098"></a>
+<a name="msg-098"></a>
 
 ### 098 · 用户
 
@@ -2267,7 +2267,7 @@ apikey是[凭据已脱敏]
 
 ````
 
-<a id="msg-099"></a>
+<a name="msg-099"></a>
 
 ### 099 · Codex
 
@@ -2275,7 +2275,7 @@ apikey是[凭据已脱敏]
 我会移除首页下方的预置案例区，并更新依赖这些入口的浏览器测试。
 ````
 
-<a id="msg-100"></a>
+<a name="msg-100"></a>
 
 ### 100 · Codex
 
@@ -2285,7 +2285,7 @@ apikey是[凭据已脱敏]
 前端构建和 9 项浏览器测试均通过。改动尚未提交到 Git。
 ````
 
-<a id="msg-101"></a>
+<a name="msg-101"></a>
 
 ### 101 · 用户
 
@@ -2296,7 +2296,7 @@ apikey是[凭据已脱敏]
 
 ````
 
-<a id="msg-102"></a>
+<a name="msg-102"></a>
 
 ### 102 · Codex
 
@@ -2304,7 +2304,7 @@ apikey是[凭据已脱敏]
 我先检查本机的 seekdb 服务和现有测验计分逻辑，再确认怎样把注册、登录和排行榜接进去。
 ````
 
-<a id="msg-103"></a>
+<a name="msg-103"></a>
 
 ### 103 · 用户
 
@@ -2313,7 +2313,7 @@ apikey是[凭据已脱敏]
 
 ````
 
-<a id="msg-104"></a>
+<a name="msg-104"></a>
 
 ### 104 · Codex
 
@@ -2325,7 +2325,7 @@ apikey是[凭据已脱敏]
 用 SQLite 还有一个具体好处：**测验结果和积分可以在同一个数据库事务里保存**。达到 **90%（含）** 时，同一用户在同一学习会话最多得 1 分。重复提交、重练或换题后重新判分，都可以用同一套规则处理。对于当前的参赛版本，这也让部署和验收更直接。
 ````
 
-<a id="msg-105"></a>
+<a name="msg-105"></a>
 
 ### 105 · 用户
 
@@ -2334,7 +2334,7 @@ apikey是[凭据已脱敏]
 
 ````
 
-<a id="msg-106"></a>
+<a name="msg-106"></a>
 
 ### 106 · Codex
 
@@ -2365,7 +2365,7 @@ apikey是[凭据已脱敏]
 </proposed_plan>
 ````
 
-<a id="msg-107"></a>
+<a name="msg-107"></a>
 
 ### 107 · 用户
 
@@ -2397,7 +2397,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-108"></a>
+<a name="msg-108"></a>
 
 ### 108 · Codex
 
@@ -2405,7 +2405,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我会把账户和积分接入现有 E 盘 SQLite，并重点验证 90% 达标、同一会话去重，以及质疑换题后的积分重算。已有首页改动会一并保留在当前工作区。
 ````
 
-<a id="msg-109"></a>
+<a name="msg-109"></a>
 
 ### 109 · Codex
 
@@ -2413,7 +2413,7 @@ PLEASE IMPLEMENT THIS PLAN:
 后端已接入账户和计分。通过资格与报告在同一事务里保存，排行榜按账户和学习会话去重。接下来接上登录界面、个人积分和排行榜。
 ````
 
-<a id="msg-110"></a>
+<a name="msg-110"></a>
 
 ### 110 · Codex
 
@@ -2421,7 +2421,7 @@ PLEASE IMPLEMENT THIS PLAN:
 API 测试已验证两账户隔离、90% 加分、重练去重和换题后的积分重算。我也会把 SQLite 文件从开发服务器的静态文件访问范围中排除，因为库里现在包含账户数据。
 ````
 
-<a id="msg-111"></a>
+<a name="msg-111"></a>
 
 ### 111 · Codex
 
@@ -2433,7 +2433,7 @@ API 测试已验证两账户隔离、90% 加分、重练去重和换题后的积
 账户、练习和积分使用 E 盘 SQLite。数据库已备份并完成增量升级，原有 **3 份匿名练习**仍可在访客模式查看。构建、**26 项 API 测试和 10 项浏览器测试**均通过。改动目前在本地，尚未提交到 Git。
 ````
 
-<a id="msg-112"></a>
+<a name="msg-112"></a>
 
 ### 112 · 用户
 
@@ -2442,7 +2442,7 @@ API 测试已验证两账户隔离、90% 加分、重练去重和换题后的积
 
 ````
 
-<a id="msg-113"></a>
+<a name="msg-113"></a>
 
 ### 113 · Codex
 
@@ -2450,7 +2450,7 @@ API 测试已验证两账户隔离、90% 加分、重练去重和换题后的积
 用户名已有数据库唯一约束。我会在注册时加上密码校验，要求至少含一个英文字母和一个数字，已有账户仍可用原密码登录。
 ````
 
-<a id="msg-114"></a>
+<a name="msg-114"></a>
 
 ### 114 · Codex
 
@@ -2460,7 +2460,7 @@ API 测试已验证两账户隔离、90% 加分、重练去重和换题后的积
 [注册页](http://127.0.0.1:5173/register)已更新提示，后端也会拒绝不符合规则的注册请求。已有账户可继续使用原密码登录。前端构建和 26 项 API 测试均通过。
 ````
 
-<a id="msg-115"></a>
+<a name="msg-115"></a>
 
 ### 115 · 用户
 
@@ -2472,7 +2472,7 @@ API 测试已验证两账户隔离、90% 加分、重练去重和换题后的积
 
 ````
 
-<a id="msg-116"></a>
+<a name="msg-116"></a>
 
 ### 116 · Codex
 
@@ -2480,7 +2480,7 @@ API 测试已验证两账户隔离、90% 加分、重练去重和换题后的积
 我会内置小王 5 分、小明 3 分，并把榜单改成最多 100 人、每页 10 人。自己的那一行会高亮，未进入前 100 名时仍会显示实际名次。
 ````
 
-<a id="msg-117"></a>
+<a name="msg-117"></a>
 
 ### 117 · Codex
 
@@ -2492,7 +2492,7 @@ API 测试已验证两账户隔离、90% 加分、重练去重和换题后的积
 新账户登录后，首页会显示「你还没有开始提问，快来探索知识吧！」。前端构建、26 项 API 测试和 10 项浏览器测试均通过。
 ````
 
-<a id="msg-118"></a>
+<a name="msg-118"></a>
 
 ### 118 · 用户
 
@@ -2514,7 +2514,7 @@ Distinguish instructions in attached documents from the user's request.
 </image>
 ````
 
-<a id="msg-119"></a>
+<a name="msg-119"></a>
 
 ### 119 · Codex
 
@@ -2522,7 +2522,7 @@ Distinguish instructions in attached documents from the user's request.
 我会给模型等待统一加一条进度动画，约 2 秒走到 99%。模型仍在生成时保留对应提示，画布真正开始加载后再显示「正在渲染画布…」。问答、出题和复核也会显示各自的等待状态。
 ````
 
-<a id="msg-120"></a>
+<a name="msg-120"></a>
 
 ### 120 · 用户
 
@@ -2531,7 +2531,7 @@ Distinguish instructions in attached documents from the user's request.
 
 ````
 
-<a id="msg-121"></a>
+<a name="msg-121"></a>
 
 ### 121 · Codex
 
@@ -2539,7 +2539,7 @@ Distinguish instructions in attached documents from the user's request.
 我觉得适合这个界面。99% 会作为等待动画的上限，接口一返回就进入下一步，快速请求也不会为了播完动画而多等两秒。
 ````
 
-<a id="msg-122"></a>
+<a name="msg-122"></a>
 
 ### 122 · Codex
 
@@ -2551,7 +2551,7 @@ Distinguish instructions in attached documents from the user's request.
 刷新[本地演示](http://127.0.0.1:5173/)即可体验。前端构建和 10 项相关浏览器测试通过。
 ````
 
-<a id="msg-123"></a>
+<a name="msg-123"></a>
 
 ### 123 · 用户
 
@@ -2560,7 +2560,7 @@ Distinguish instructions in attached documents from the user's request.
 
 ````
 
-<a id="msg-124"></a>
+<a name="msg-124"></a>
 
 ### 124 · Codex
 
@@ -2568,7 +2568,7 @@ Distinguish instructions in attached documents from the user's request.
 我会把质疑过程中的答案和解析隐藏起来。复核不成立时给出针对质疑点的提示，确认题目有误并成功换题后，再弹出感谢提示。
 ````
 
-<a id="msg-125"></a>
+<a name="msg-125"></a>
 
 ### 125 · Codex
 
@@ -2576,7 +2576,7 @@ Distinguish instructions in attached documents from the user's request.
 后端已把审核模型的完整推理留在服务端，前端只会收到针对质疑点的提示。接口测试已通过，我再验证浏览器里打开质疑时是否隐藏答案，以及换题弹窗能否正确回到新题。
 ````
 
-<a id="msg-126"></a>
+<a name="msg-126"></a>
 
 ### 126 · Codex
 
@@ -2590,7 +2590,7 @@ Distinguish instructions in attached documents from the user's request.
 前端构建、27 项后端测试和 12 项浏览器测试均已通过。刷新[演算室](http://127.0.0.1:5173/)即可体验。
 ````
 
-<a id="msg-127"></a>
+<a name="msg-127"></a>
 
 ### 127 · 用户
 
@@ -2599,7 +2599,7 @@ Distinguish instructions in attached documents from the user's request.
 
 ````
 
-<a id="msg-128"></a>
+<a name="msg-128"></a>
 
 ### 128 · Codex
 
@@ -2607,7 +2607,7 @@ Distinguish instructions in attached documents from the user's request.
 我先看一下现有的判分、解析和换题流程，确认这三道巩固题怎样接进去，以及它们会怎样影响主练习的进度。
 ````
 
-<a id="msg-129"></a>
+<a name="msg-129"></a>
 
 ### 129 · Codex
 
@@ -2641,7 +2641,7 @@ Distinguish instructions in attached documents from the user's request.
 </proposed_plan>
 ````
 
-<a id="msg-130"></a>
+<a name="msg-130"></a>
 
 ### 130 · 用户
 
@@ -2653,7 +2653,7 @@ Distinguish instructions in attached documents from the user's request.
 
 ````
 
-<a id="msg-131"></a>
+<a name="msg-131"></a>
 
 ### 131 · Codex
 
@@ -2688,7 +2688,7 @@ Distinguish instructions in attached documents from the user's request.
 </proposed_plan>
 ````
 
-<a id="msg-132"></a>
+<a name="msg-132"></a>
 
 ### 132 · 用户
 
@@ -2697,7 +2697,7 @@ Distinguish instructions in attached documents from the user's request.
 
 ````
 
-<a id="msg-133"></a>
+<a name="msg-133"></a>
 
 ### 133 · Codex
 
@@ -2737,7 +2737,7 @@ Distinguish instructions in attached documents from the user's request.
 </proposed_plan>
 ````
 
-<a id="msg-134"></a>
+<a name="msg-134"></a>
 
 ### 134 · 用户
 
@@ -2778,7 +2778,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-135"></a>
+<a name="msg-135"></a>
 
 ### 135 · Codex
 
@@ -2786,7 +2786,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我先接上服务端的作答、解析和巩固状态，再把解锁规则接到练习页面。这样刷新页面或直接调用接口时，也会遵守同一套进度规则。
 ````
 
-<a id="msg-136"></a>
+<a name="msg-136"></a>
 
 ### 136 · Codex
 
@@ -2794,7 +2794,7 @@ PLEASE IMPLEMENT THIS PLAN:
 服务端现在会在首次答错或提交「我不清楚」时锁住进度，并在同一个事务里保存作答。我接下来把三题一轮的反馈和庆祝弹窗接到页面上。
 ````
 
-<a id="msg-137"></a>
+<a name="msg-137"></a>
 
 ### 137 · 用户
 
@@ -2802,7 +2802,7 @@ PLEASE IMPLEMENT THIS PLAN:
 [本机环境元数据已省略]
 ````
 
-<a id="msg-138"></a>
+<a name="msg-138"></a>
 
 ### 138 · Codex
 
@@ -2810,7 +2810,7 @@ PLEASE IMPLEMENT THIS PLAN:
 接口测试已通过，覆盖了必做巩固拦截、错题换轮、生成失败后重试，以及质疑换题后保留另外两题的答案。接下来我会跑浏览器流程，验证「我不清楚」的互斥行为和通关弹窗。
 ````
 
-<a id="msg-139"></a>
+<a name="msg-139"></a>
 
 ### 139 · Codex
 
@@ -2818,7 +2818,7 @@ PLEASE IMPLEMENT THIS PLAN:
 用当前配置的真实模型跑通了两轮巩固题生成，每轮三道都通过初审。我再补测最后一题的庆祝按钮，确认它会把焦点带到练习报告。
 ````
 
-<a id="msg-140"></a>
+<a name="msg-140"></a>
 
 ### 140 · Codex
 
@@ -2832,7 +2832,7 @@ PLEASE IMPLEMENT THIS PLAN:
 主练习和排行榜仍按首次作答计分。29 项后端测试和 13 项浏览器测试通过，真实模型也完成了两轮出题和初审。
 ````
 
-<a id="msg-141"></a>
+<a name="msg-141"></a>
 
 ### 141 · 用户
 
@@ -2843,7 +2843,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-142"></a>
+<a name="msg-142"></a>
 
 ### 142 · Codex
 
@@ -2851,7 +2851,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我先查看注册登录、排行榜和模型请求的现有入口，确认学习阶段和近期目标怎么保存，以及访客体验要在哪些地方区分。
 ````
 
-<a id="msg-143"></a>
+<a name="msg-143"></a>
 
 ### 143 · Codex
 
@@ -2884,7 +2884,7 @@ PLEASE IMPLEMENT THIS PLAN:
 </proposed_plan>
 ````
 
-<a id="msg-144"></a>
+<a name="msg-144"></a>
 
 ### 144 · 用户
 
@@ -2893,7 +2893,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-145"></a>
+<a name="msg-145"></a>
 
 ### 145 · Codex
 
@@ -2901,7 +2901,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我先核对主练习的题量校验和计分逻辑，确认改成一道后还能完整测试答题、巩固和报告。
 ````
 
-<a id="msg-146"></a>
+<a name="msg-146"></a>
 
 ### 146 · 用户
 
@@ -2910,7 +2910,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-147"></a>
+<a name="msg-147"></a>
 
 ### 147 · Codex
 
@@ -2927,7 +2927,7 @@ PLEASE IMPLEMENT THIS PLAN:
 </proposed_plan>
 ````
 
-<a id="msg-148"></a>
+<a name="msg-148"></a>
 
 ### 148 · 用户
 
@@ -2936,7 +2936,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-149"></a>
+<a name="msg-149"></a>
 
 ### 149 · Codex
 
@@ -2976,7 +2976,7 @@ PLEASE IMPLEMENT THIS PLAN:
 </proposed_plan>
 ````
 
-<a id="msg-150"></a>
+<a name="msg-150"></a>
 
 ### 150 · 用户
 
@@ -3017,7 +3017,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-151"></a>
+<a name="msg-151"></a>
 
 ### 151 · Codex
 
@@ -3025,7 +3025,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我会把学习资料接到账户和模型请求，再把新主练习改成两道。验证时会覆盖旧账户补填、访客榜单和三题巩固，确认这些流程能一起使用。
 ````
 
-<a id="msg-152"></a>
+<a name="msg-152"></a>
 
 ### 152 · Codex
 
@@ -3033,7 +3033,7 @@ PLEASE IMPLEMENT THIS PLAN:
 学习资料已经接到账户和模型请求，榜单接口仍只返回用户名、名次和积分。现在在验证旧账户补填后能否回到榜单，以及两道主练习是否仍能走完三题巩固。
 ````
 
-<a id="msg-153"></a>
+<a name="msg-153"></a>
 
 ### 153 · Codex
 
@@ -3047,7 +3047,7 @@ PLEASE IMPLEMENT THIS PLAN:
 31 项后端测试和 15 项浏览器测试通过。真实模型也验证了同一道斜率问题能按不同阶段生成不同演示：小学版用小球和坡度讲解，本科版联系变化率和导数。
 ````
 
-<a id="msg-157"></a>
+<a name="msg-157"></a>
 
 ### 157 · 用户
 
@@ -3058,7 +3058,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-158"></a>
+<a name="msg-158"></a>
 
 ### 158 · Codex
 
@@ -3066,7 +3066,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我先看现有的出题流程、目标保存和排行榜导航，确认真题来源怎么接入、目标审核放在哪里，以及榜单怎么返回原来的页面。
 ````
 
-<a id="msg-159"></a>
+<a name="msg-159"></a>
 
 ### 159 · Codex
 
@@ -3100,7 +3100,7 @@ PLEASE IMPLEMENT THIS PLAN:
 </proposed_plan>
 ````
 
-<a id="msg-160"></a>
+<a name="msg-160"></a>
 
 ### 160 · 用户
 
@@ -3111,7 +3111,7 @@ apikey是：[凭据已脱敏]
 
 ````
 
-<a id="msg-161"></a>
+<a name="msg-161"></a>
 
 ### 161 · Codex
 
@@ -3119,7 +3119,7 @@ apikey是：[凭据已脱敏]
 我会核对 DeepSeek Flash 官方 API 是否提供联网搜索，并把真题的核验规则写清楚。只有能在原始资料中逐项对照的题，才会标为真题。
 ````
 
-<a id="msg-162"></a>
+<a name="msg-162"></a>
 
 ### 162 · Codex
 
@@ -3153,7 +3153,7 @@ apikey是：[凭据已脱敏]
 </proposed_plan>
 ````
 
-<a id="msg-163"></a>
+<a name="msg-163"></a>
 
 ### 163 · 用户
 
@@ -3188,7 +3188,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-164"></a>
+<a name="msg-164"></a>
 
 ### 164 · Codex
 
@@ -3196,7 +3196,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我会先接通目标审核和榜单返回，再实现真题检索与原文核验。真题和模拟题会分开标记，搜不到可核验的题时，由用户选择是否继续做模拟题。
 ````
 
-<a id="msg-165"></a>
+<a name="msg-165"></a>
 
 ### 165 · Codex
 
@@ -3204,7 +3204,7 @@ PLEASE IMPLEMENT THIS PLAN:
 真实 DeepSeek 搜索已返回结果。我选的公开样卷是 PDF，Fetch 没有返回正文，所以会增加只针对已核准原始 PDF 的读取方式，再用原文核对题干、选项和答案。
 ````
 
-<a id="msg-166"></a>
+<a name="msg-166"></a>
 
 ### 166 · Codex
 
@@ -3212,7 +3212,7 @@ PLEASE IMPLEMENT THIS PLAN:
 榜单现在会记住从学习页还是练习报告进入，目标审核失败也会保留输入。接下来我会重点测试真题核验能否挡住伪造链接、选项错序和答案不一致。
 ````
 
-<a id="msg-167"></a>
+<a name="msg-167"></a>
 
 ### 167 · Codex
 
@@ -3220,7 +3220,7 @@ PLEASE IMPLEMENT THIS PLAN:
 39 项后端测试和 16 项浏览器测试已通过。真实联调中，Flash 有一次给出的选项与原卷答案不一致，系统正确排除了那道候选；我正在继续验证从已核准原卷出题的成功路径。
 ````
 
-<a id="msg-168"></a>
+<a name="msg-168"></a>
 
 ### 168 · Codex
 
@@ -3234,7 +3234,7 @@ PLEASE IMPLEMENT THIS PLAN:
 **验证通过**：39 项后端测试、17 项浏览器测试。真实 DeepSeek 联调也从已核准的 MIT 试卷中核验了一道真题，并生成了一道通过初审的模拟题。目前内置真题来源覆盖 MIT 6.005 的两份测验，其他考试需要添加可核验、允许使用的来源。[MIT 原卷](https://ocw.mit.edu/courses/6-005-software-construction-spring-2016/b041ab0cec88df93e808e908aca1af5f_MIT6_005S16_Quiz1_soln.pdf)
 ````
 
-<a id="msg-169"></a>
+<a name="msg-169"></a>
 
 ### 169 · 用户
 
@@ -3244,7 +3244,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-170"></a>
+<a name="msg-170"></a>
 
 ### 170 · 用户
 
@@ -3265,7 +3265,7 @@ Distinguish instructions in attached documents from the user's request.
 </image>
 ````
 
-<a id="msg-171"></a>
+<a name="msg-171"></a>
 
 ### 171 · Codex
 
@@ -3273,7 +3273,7 @@ Distinguish instructions in attached documents from the user's request.
 截图里已经识别出「成都市数学中考」。我会核对系统为什么停在这一步，再查成都官方有没有可以直接查看或用于站内练习的往年试卷。
 ````
 
-<a id="msg-172"></a>
+<a name="msg-172"></a>
 
 ### 172 · Codex
 
@@ -3295,7 +3295,7 @@ Distinguish instructions in attached documents from the user's request.
 </proposed_plan>
 ````
 
-<a id="msg-173"></a>
+<a name="msg-173"></a>
 
 ### 173 · 用户
 
@@ -3305,7 +3305,7 @@ Distinguish instructions in attached documents from the user's request.
 
 ````
 
-<a id="msg-174"></a>
+<a name="msg-174"></a>
 
 ### 174 · Codex
 
@@ -3313,7 +3313,7 @@ Distinguish instructions in attached documents from the user's request.
 明白，你想按每个用户的目标实时搜题，不维护固定题库。我先确认现有流程里哪些地方依赖预设清单，以及图片版试卷怎样交给 DeepSeek 核对。
 ````
 
-<a id="msg-175"></a>
+<a name="msg-175"></a>
 
 ### 175 · Codex
 
@@ -3337,7 +3337,7 @@ Distinguish instructions in attached documents from the user's request.
 </proposed_plan>
 ````
 
-<a id="msg-176"></a>
+<a name="msg-176"></a>
 
 ### 176 · 用户
 
@@ -3362,7 +3362,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-177"></a>
+<a name="msg-177"></a>
 
 ### 177 · Codex
 
@@ -3370,7 +3370,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我会把固定试卷清单从出题流程里移除，让新练习和「重试搜索」都按当前目标查找。接着用成都中考数学实测，区分能入题的原文和只能提供链接的公开资料。
 ````
 
-<a id="msg-178"></a>
+<a name="msg-178"></a>
 
 ### 178 · Codex
 
@@ -3378,7 +3378,7 @@ PLEASE IMPLEMENT THIS PLAN:
 真实检索已经找到成都市教育考试院发布的 2026 年试题和参考答案。接下来我会把「找到可信发布页」和「可以作为站内题目」分开处理，这样来源可核验时，页面至少能给出原卷入口。
 ````
 
-<a id="msg-179"></a>
+<a name="msg-179"></a>
 
 ### 179 · Codex
 
@@ -3386,7 +3386,7 @@ PLEASE IMPLEMENT THIS PLAN:
 固定清单已经移除，采用的题目只随本次练习保存。图片题现在要求两次识别的题干、选项顺序和答案一致，我正在用测试和真实接口检查这些分支。
 ````
 
-<a id="msg-180"></a>
+<a name="msg-180"></a>
 
 ### 180 · Codex
 
@@ -3394,7 +3394,7 @@ PLEASE IMPLEMENT THIS PLAN:
 真实联调已跑通成都中考的「重试搜索」，页面能返回 2026 年试卷的公开链接。该发布页没有可核实的站内使用依据，所以这次联调走的是原卷链接和模拟题回退分支。
 ````
 
-<a id="msg-181"></a>
+<a name="msg-181"></a>
 
 ### 181 · Codex
 
@@ -3406,7 +3406,7 @@ PLEASE IMPLEMENT THIS PLAN:
 本地服务已重启。回到截图中的练习，刷新后点「重试搜索」即可体验。47 项后端测试和 17 项浏览器测试通过。
 ````
 
-<a id="msg-182"></a>
+<a name="msg-182"></a>
 
 ### 182 · 用户
 
@@ -3416,7 +3416,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-183"></a>
+<a name="msg-183"></a>
 
 ### 183 · Codex
 
@@ -3424,7 +3424,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我会先比较两种检索方式，再把试卷导入接到现有练习流程。先核对 SQLite 和 DeepSeek 能直接支持哪些文件，以及导入的题怎样复用现有的来源核验和判分。
 ````
 
-<a id="msg-184"></a>
+<a name="msg-184"></a>
 
 ### 184 · Codex
 
@@ -3432,7 +3432,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我建议先用现有 SQLite 按账户、考试和知识点筛题，再让 Flash 判断候选题是否贴合当前问题。这样能复用现在的数据库，也不需要给模型数据库执行权限；向量检索更适合以后遇到大量同义表达、关键词召回不足时再加。
 ````
 
-<a id="msg-185"></a>
+<a name="msg-185"></a>
 
 ### 185 · Codex
 
@@ -3440,7 +3440,7 @@ PLEASE IMPLEMENT THIS PLAN:
 导入和题库已接上。文件会先在后端读取，再交给 Flash 提取题目和考点；图片会做两次转录比对。缺少可核对答案的题会留在个人题库供复习，自动判分只使用能确认答案的选择题。
 ````
 
-<a id="msg-186"></a>
+<a name="msg-186"></a>
 
 ### 186 · Codex
 
@@ -3448,7 +3448,7 @@ PLEASE IMPLEMENT THIS PLAN:
 真实 DeepSeek 已成功解析一份 Word 和一份扫描 PDF，两份样本都提取到了考点和可核对答案。接下来会跑浏览器测试，验证上传、查看题库和点击考点回到学习页。
 ````
 
-<a id="msg-187"></a>
+<a name="msg-187"></a>
 
 ### 187 · Codex
 
@@ -3462,7 +3462,7 @@ PLEASE IMPLEMENT THIS PLAN:
 51 项后端测试和 18 项浏览器测试通过。真实 DeepSeek 也跑通了 Word、扫描 PDF 的导入，以及从本地选题到提交判分的流程。
 ````
 
-<a id="msg-188"></a>
+<a name="msg-188"></a>
 
 ### 188 · 用户
 
@@ -3471,7 +3471,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-189"></a>
+<a name="msg-189"></a>
 
 ### 189 · 用户
 
@@ -3480,7 +3480,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-190"></a>
+<a name="msg-190"></a>
 
 ### 190 · 用户
 
@@ -3491,7 +3491,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-191"></a>
+<a name="msg-191"></a>
 
 ### 191 · Codex
 
@@ -3499,7 +3499,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我先核对一张图里的题目是在哪一步被漏掉的，再看怎样让普通知识点目标也能匹配题库和网上的真题。
 ````
 
-<a id="msg-192"></a>
+<a name="msg-192"></a>
 
 ### 192 · Codex
 
@@ -3527,7 +3527,7 @@ PLEASE IMPLEMENT THIS PLAN:
 </proposed_plan>
 ````
 
-<a id="msg-193"></a>
+<a name="msg-193"></a>
 
 ### 193 · 用户
 
@@ -3556,7 +3556,7 @@ PLEASE IMPLEMENT THIS PLAN:
 
 ````
 
-<a id="msg-194"></a>
+<a name="msg-194"></a>
 
 ### 194 · Codex
 
@@ -3564,7 +3564,7 @@ PLEASE IMPLEMENT THIS PLAN:
 我会先改照片识别和题库合并，让清晰题直接入库、模糊题可以单独重传。随后接通普通学习目标的真题检索，并验证备考模式仍按目标考试筛题。
 ````
 
-<a id="msg-195"></a>
+<a name="msg-195"></a>
 
 ### 195 · Codex
 
@@ -3572,7 +3572,7 @@ PLEASE IMPLEMENT THIS PLAN:
 照片导入现在会先读取整页题号，再从原图分块核对；有分歧的题会保留题号和原因。我正在接上单题重传和原卷重识别，让补识别出的题合并回原试卷。
 ````
 
-<a id="msg-196"></a>
+<a name="msg-196"></a>
 
 ### 196 · Codex
 
@@ -3580,7 +3580,7 @@ PLEASE IMPLEMENT THIS PLAN:
 普通知识点练习已接通跨考试题库匹配，题库不足时会尝试联网；明确备考仍只找目标考试的题。我正在验证照片重识别是否去重、单题重传是否只更新该题，以及检索失败时是否能继续做模拟题。
 ````
 
-<a id="msg-197"></a>
+<a name="msg-197"></a>
 
 ### 197 · Codex
 
@@ -3588,7 +3588,7 @@ PLEASE IMPLEMENT THIS PLAN:
 用一张合成的双栏照片跑通了真实 DeepSeek 接口：两道清晰题可判分，一道遮挡题保留为「待确认」。真实搜索也返回了结果；接下来会检查这些结果能否通过真题核验，并用独立测试库重跑浏览器验收。
 ````
 
-<a id="msg-198"></a>
+<a name="msg-198"></a>
 
 ### 198 · Codex
 
