@@ -92,6 +92,7 @@ SQLite 默认保存在项目的 `.local/quiz.sqlite3`。从 E 盘工作区运行
 npm.cmd run build
 .\.venv\Scripts\python.exe -m pytest -q
 $env:Path = (Join-Path (Get-Location) '.venv\Scripts') + ';' + $env:Path
+$env:BROWSER_QUIZ_DB_PATH = '.local/browser-quiz-' + [Guid]::NewGuid().ToString('N') + '.sqlite3'
 npm.cmd run test:browser
 ```
 
@@ -99,6 +100,8 @@ API 测试使用模拟上游。浏览器测试用确定性题材验证二次函�
 
 ## AI 协同开发记录
 
+- [Codex 对话原文导出](docs/ai-iterations/04-codex-transcript.md) · 按时间排列的用户与 AI 可见消息
+- [三条完整 Prompt 链](docs/ai-iterations/05-prompt-chain-index.md) · 用户修复指导、实现提交与复测入口
 - [动态生成与隔离预览](docs/ai-iterations/01-lesson-preview.md) · 原始对话与验收
 - [对话修改与版本管理](docs/ai-iterations/02-revision-versions.md) · 设计原文与实施验证
 - [选择题与按需审核](docs/ai-iterations/03-quiz-review.md) · 设计决策与实施验证
