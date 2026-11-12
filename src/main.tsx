@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AUTH_CHANGE_KEY, AuthForm, Leaderboard, LearningSettings, authLink, authRequest, finishAuth, leaderboardLink, type User } from './account-pages'
+import { ExamLibrary } from './exam-library'
 import { fetchLesson, type LessonRequest, type LessonResponse } from './lessons'
 import { LessonWorkspace } from './lesson-workspace'
 import { LoadingProgress } from './loading-progress'
@@ -131,6 +132,7 @@ function App({ user }: { user: User | null }) {
             <a href={leaderboardLink()}>排行榜</a>
             {user ? <>
               <span className="account-name">{user.username}</span>
+              <a href="/exam-library">我的试卷</a>
               <a href="/profile">学习设置</a>
               <button type="button" className="quiet-button" disabled={loggingOut} onClick={() => void logout()}>退出</button>
             </> : <>
@@ -143,6 +145,7 @@ function App({ user }: { user: User | null }) {
       {logoutError && <p className="page" role="alert">{logoutError}</p>}
       {user && (!user.profile || user.needs_goal_review || path === '/profile') ? <LearningSettings user={user} />
       : path === '/leaderboard' ? <Leaderboard guest={!user} />
+      : path === '/exam-library' ? <ExamLibrary signedIn={!!user} />
       : path === '/profile' ? <AuthForm mode="login" />
       : path === '/login' || path === '/register' ? <AuthForm mode={path === '/login' ? 'login' : 'register'} />
       : studying && request ? (

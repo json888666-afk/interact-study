@@ -13,6 +13,7 @@ from .accounts import Profile, User, account_exam, account_profile, learning_pro
 from .exams import ExamUnavailable, exam_counts, find_exam_questions
 from .goals import ExamTarget
 from .model import GenerationError, model_client
+from .papers import local_questions
 from .quiz_models import (
     MAIN_QUESTION_COUNT, AnswerRequest, ChallengeRequest, QuizRequest, analyze_drill, build_drill, build_quiz, review_challenge,
 )
@@ -67,11 +68,12 @@ async def generate_job(owner, quiz_id, request, client, previous, excluded, prof
                 simulated_count = exam["past_count"] + exam["simulated_count"]
             else:
                 target = ExamTarget.model_validate(exam["target"])
-                past = await find_exam_questions(target, request, client, count=exam["past_count"], excluded=excluded)
+                past = await practice_questions(account_id, target, request, client, count=exam["past_count"],
+                                                excluded=excluded, local_only=exam.get("local_only", False))
                 simulated_count = exam["simulated_count"] + exam["past_count"] - len(past)
         elif account_id:
             try:
-                past = await find_exam_questions(None, request, client, count=1, excluded=excluded)
+                past = await practice_questions(account_id, None, request, client, count=1, excluded=excluded)
             except ExamUnavailable:
                 pass
             if past:
@@ -99,6 +101,16 @@ async def generate_job(owner, quiz_id, request, client, previous, excluded, prof
             raise
         quiz.update(update)
         store.save(connection, quiz)
+
+
+async def practice_questions(account, target, context, client, *, count, excluded=(), local_only=False, replacement=None):
+    local = await local_questions(account, target, context, client, count=count, excluded=excluded,
+                                 replacement=replacement) if account else []
+    if len(local) == count or local_only:
+        return local
+    online = await find_exam_questions(target, context, client, count=count - len(local),
+                                       excluded=[*excluded, *(item["stem"] for item in local)], replacement=replacement)
+    return local + online
 
 
 @router.post("", status_code=202)
@@ -373,8 +385,9 @@ async def challenge_job(owner, quiz_id, question, quiz, objection, confirmed_inv
             if question.get("origin") == "past" and not allow_simulated:
                 exam = fresh.get("exam")
                 target_exam = ExamTarget.model_validate(exam["target"]) if exam else None
-                past = await find_exam_questions(target_exam, context, client, count=1,
-                                                 excluded=excluded, replacement=question)
+                past = await practice_questions(fresh["account_id"], target_exam, context, client, count=1,
+                                                excluded=excluded, replacement=question,
+                                                local_only=bool(exam and exam.get("local_only")))
                 if not past:
                     raise ExamUnavailable("未找到可核验的替代真题。")
                 replacement = {"id": str(uuid4()), **past[0]}

@@ -13,6 +13,7 @@ from .accounts import Profile
 from .accounts import router as accounts_router
 from .learning import AskRequest, Explanation, ask_lesson
 from .model import REVISION_PROMPT, SYSTEM_PROMPT, GenerationError, ModelSettings, generate_lesson, model_client, teaching_material
+from .papers import router as papers_router
 from .quizzes import router as quiz_router
 from .schemas import GenerateRequest, Lesson, LessonResponse, ReviseRequest
 
@@ -30,6 +31,7 @@ async def lifespan(_app):
 app = FastAPI(title="演算室", lifespan=lifespan)
 app.include_router(accounts_router)
 app.include_router(quiz_router)
+app.include_router(papers_router)
 
 
 @app.exception_handler(RequestValidationError)

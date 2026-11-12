@@ -8,6 +8,8 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
+from .paper_store import initialize_papers
+
 ROOT = Path(__file__).resolve().parents[1]
 PAUSED = {"pending", "replacement_failed"}
 CLARIFICATIONS = {
@@ -79,6 +81,7 @@ def initialize():
                 connection.execute("ALTER TABLE users ADD COLUMN goal_approved INTEGER NOT NULL DEFAULT 0")
             if "exam_target" not in user_columns:
                 connection.execute("ALTER TABLE users ADD COLUMN exam_target TEXT")
+            initialize_papers(connection)
             connection.execute("""CREATE TABLE IF NOT EXISTS login_sessions (
                 token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
                 expires_at INTEGER NOT NULL

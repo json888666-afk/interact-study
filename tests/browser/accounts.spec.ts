@@ -133,3 +133,45 @@ test('goal review waits at 99 percent and keeps the form on rejection', async ({
   await expect(page.getByRole('alert')).toHaveText('请补充你准备参加的考试。')
   await expect(page.getByLabel('近期学习目标')).toHaveValue('准备参加考试')
 })
+
+test('imports a paper, resubmits a pending question and returns to learn a tagged topic', async ({ page }) => {
+  const user = { id: 'library-user', username: 'LibraryUser', profile: { education_stage: '初中', goal: '学习数学' } }
+  const first = { id: 1, number: '1', stem: '抛物线何时开口向上？', tags: ['二次函数'],
+    options: ['系数为正', '系数为负', '系数为零'], status: 'ready', file: 'paper.docx', page: 1 }
+  const pending = { ...first, id: 2, number: '2', stem: '', tags: [], options: [], status: 'pending', reason: '公式有分歧。' }
+  const paper = { id: 'paper', exam: '成都中考', subject: '数学', year: null, paper: null, filenames: ['paper.docx'],
+    question_count: 2, ready_count: 1, review_count: 0, pending_count: 1, questions: [first, pending] }
+  await page.route('**/api/auth/me', (route) => route.fulfill({ json: { user } }))
+  await page.route('**/api/exam-library', (route) => route.fulfill({ json: { papers: [] } }))
+  await page.route('**/api/exam-library/paper/questions/2/retry', (route) => {
+    expect(route.request().postDataJSON().files[0].filename).toBe('clear.png')
+    return route.fulfill({ json: { paper: { ...paper, pending_count: 0, review_count: 1,
+      questions: [first, { ...pending, stem: '写出对称轴。', status: 'review_only' }] } } })
+  })
+  await page.route('**/api/exam-library/imports', (route) => {
+    const submitted = route.request().postDataJSON()
+    expect(submitted.exam).toBe('成都中考')
+    expect(submitted.consent).toBe(true)
+    expect(submitted.files[0]).toEqual({ filename: 'paper.docx', data: Buffer.from('sample').toString('base64') })
+    return route.fulfill({ status: 201, json: { duplicate: false, paper } })
+  })
+  await page.goto('/')
+  await page.getByRole('link', { name: '我的试卷' }).click()
+  await page.getByLabel('考试名称').fill('成都中考')
+  await page.getByLabel('试卷和参考答案').setInputFiles({
+    name: 'paper.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: Buffer.from('sample'),
+  })
+  await page.getByRole('checkbox', { name: /同意/ }).check()
+  await page.getByRole('button', { name: '导入试卷' }).click()
+  await expect(page.getByText('已导入 2 道题，其中 1 道可用于自动判分。')).toBeVisible()
+  await expect(page.getByText('系数为正')).toBeVisible()
+  await page.getByRole('button', { name: '重新提交这道题' }).click()
+  await page.getByLabel('这道题的清晰照片').setInputFiles({ name: 'clear.png', mimeType: 'image/png', buffer: Buffer.from('clear') })
+  await page.getByRole('group', { name: '重新提交这道题' }).getByRole('checkbox', { name: /同意/ }).check()
+  await page.getByRole('button', { name: '提交核对' }).click()
+  await expect(page.getByText('写出对称轴。')).toBeVisible()
+  await expect(page.getByRole('button', { name: '重新提交这道题' })).toHaveCount(0)
+  await page.getByRole('link', { name: '学习二次函数' }).click()
+  await expect(page.getByLabel('你想弄懂什么？')).toHaveValue('请讲解二次函数')
+})
