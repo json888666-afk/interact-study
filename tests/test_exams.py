@@ -170,23 +170,16 @@ def test_exam_counts_and_source_after_answer(client, exam_upstream, monkeypatch,
     assert sum(path.endswith("/search") for path, _ in exam_upstream["calls"]) > searches
 
 
-@pytest.mark.parametrize("failure", [None, "permission", "timeout"])
-def test_knowledge_goal_searches_then_automatically_falls_back(client, exam_upstream, monkeypatch, failure):
+def test_knowledge_goal_does_not_search_online(client, exam_upstream, monkeypatch):
     monkeypatch.setenv("EXAM_QUIZ_MODE", "standard")
     exam_upstream.update(knowledge=True, paper=ORIGINAL.replace(TITLE, TITLE.replace("成都", "北京")))
-    if failure == "permission":
-        exam_upstream["paper"] = exam_upstream["paper"].replace(PERMISSION, "欢迎转发链接。")
-    if failure == "timeout":
-        exam_upstream["timeout"] = True
     update = client.post("/api/auth/profile", json={"education_stage": "初中", "goal": "学懂二次函数"})
     assert update.status_code == 200
     _, _, quiz = exam_start(client)
     assert quiz["status"] == "ready" and "exam" not in quiz
-    assert [item["origin"] for item in quiz["questions"]] == (["simulated", "simulated"] if failure else ["past", "simulated"])
+    assert [item["origin"] for item in quiz["questions"]] == ["simulated", "simulated"]
     searches = [data["query"] for path, data in exam_upstream["calls"] if path.endswith("/search")]
-    assert searches and all("成都" not in query and "private goal" not in query for query in searches)
-    if not failure:
-        assert quiz["questions"][0]["source"]["exam"] == "北京中考数学"
+    assert searches == []
 
 
 @pytest.mark.parametrize("reason", ["missing", "incorrect", "rewrite", "permission", "restricted", "wrong_region", "timeout"])

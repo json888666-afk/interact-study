@@ -271,6 +271,8 @@ def test_goal_review_preserves_existing_profile_on_failure_and_extracts_exam(cli
             return {"verdict": "rejected", "message": "目标需要调整。"}
         if goal == "正常学习但服务暂不可用":
             return httpx.Response(503)
+        if goal == "备考成都中考数学":
+            return {"verdict": "approved", "message": "通过", "exam": {"exam": "成都中考", "subject": "数学"}}
         exam = {"exam": "MIT 6.005", "subject": "软件构造"} if goal == "备考 MIT 6.005 软件构造" else None
         return {"verdict": "approved", "message": "通过", "exam": exam}
 
@@ -288,6 +290,14 @@ def test_goal_review_preserves_existing_profile_on_failure_and_extracts_exam(cli
     with store.database() as db:
         from backend.accounts import account_exam
         assert account_exam(db, user["id"]).exam == "MIT 6.005"
+    generic = PROFILE | {"goal": "准备期末数学考试"}
+    assert client.post("/api/auth/profile", json=generic).json()["user"]["profile"] == generic
+    with store.database() as db:
+        assert account_exam(db, user["id"]) is None
+    specific = PROFILE | {"goal": "备考成都中考数学"}
+    assert client.post("/api/auth/profile", json=specific).json()["user"]["profile"] == specific
+    with store.database() as db:
+        assert account_exam(db, user["id"]).exam == "成都中考"
 
 
 def test_repractice_from_old_quiz_keeps_two_weakest_topics(client):
@@ -320,3 +330,48 @@ def test_repractice_from_old_quiz_keeps_two_weakest_topics(client):
     restart = client.post("/api/quizzes", headers=headers, json=material | {"previous_id": old["id"]}).json()
     result = client.get("/api/quizzes/" + restart["id"], headers=headers).json()
     assert result["status"] == "ready" and len(result["questions"]) == 2
+
+
+def test_profile_guidance_covers_stages_and_goals():
+    from backend.model import PROFILE_GUIDANCE, STAGE_GUIDANCE, SYSTEM_PROMPT
+
+    for stage in ("幼儿园", "小学", "初中", "高中", "本科", "硕士", "博士"):
+        assert stage in STAGE_GUIDANCE
+    assert "goal" in PROFILE_GUIDANCE
+    assert "备考" in PROFILE_GUIDANCE and "项目" in PROFILE_GUIDANCE
+    assert "以用户当前问题为主" in PROFILE_GUIDANCE
+    assert STAGE_GUIDANCE in SYSTEM_PROMPT
+
+
+def test_goal_prompt_allows_generic_learning_goals():
+    from backend.goals import GOAL_PROMPT
+
+    assert "不要求写清具体考试" in GOAL_PROMPT
+    assert "准备期末数学考试" in GOAL_PROMPT
+    assert "exam 为 null" in GOAL_PROMPT
+    assert "不要因此要求补充" in GOAL_PROMPT
+
+
+def test_generic_goal_does_not_search_exam_questions(client, monkeypatch):
+    called = {"search": False}
+
+    def unavailable(*_args, **_kwargs):
+        called["search"] = True
+        raise RuntimeError("generic goal must not search")
+
+    monkeypatch.setattr("backend.quizzes.find_exam_questions", unavailable)
+
+    def handler(prompt, content, _model):
+        data = json.loads(content) if isinstance(content, str) and content.startswith("{") else content
+        if prompt == DRAFT_PROMPT:
+            return draft()
+        assert prompt == FIRST_REVIEW_PROMPT
+        return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
+
+    mock_upstream(handler, goal_handler=lambda _data: {"verdict": "approved", "message": "通过"})
+    register(client, "GenericGoalUser")
+    owner, path, _ = start(client)
+    quiz = client.get(path, headers=owner).json()
+    assert quiz["status"] == "ready", quiz
+    assert called["search"] is False
+    assert len(quiz["questions"]) == 2

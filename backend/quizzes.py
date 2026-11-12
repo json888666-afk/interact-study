@@ -108,6 +108,8 @@ async def practice_questions(account, target, context, client, *, count, exclude
                                  replacement=replacement) if account else []
     if len(local) == count or local_only:
         return local
+    if target is None:
+        return local
     online = await find_exam_questions(target, context, client, count=count - len(local),
                                        excluded=[*excluded, *(item["stem"] for item in local)], replacement=replacement)
     return local + online
