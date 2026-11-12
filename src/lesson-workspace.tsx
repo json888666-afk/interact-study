@@ -2,13 +2,18 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { AskPanel } from './ask-panel'
 import type { Turn } from './learning-api'
 import { fetchLesson, reviseLesson } from './lessons'
+import { LoadingProgress } from './loading-progress'
 import { Preview, type PreviewResult } from './preview'
 import { QuizPanel } from './quiz-panel'
 import { currentVersion, makeVersion, type LessonVersion, type StudySession } from './study-session'
 
 type FeedbackEntry = { id: string; instruction: string; reply: string }
 
-export function LessonWorkspace({ session, onSave }: { session: StudySession; onSave: (session: StudySession) => void }) {
+export function LessonWorkspace({ session, accountId, onSave }: {
+  session: StudySession
+  accountId?: string
+  onSave: (session: StudySession) => void
+}) {
   const current = currentVersion(session)
   const [mode, setMode] = useState<'ask' | 'revise'>('ask')
   const [practicing, setPracticing] = useState(() =>
@@ -131,7 +136,8 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
               placeholder="例如，增加一个暂停按钮。" />
             <button className="primary-button" type="submit" disabled={pending || !instruction.trim()}>发送修改</button>
           </form>
-          {pending && <p className="workspace-status" role="status">{candidate ? '正在加载新版演示…' : '正在生成新版演示…'}</p>}
+          {pending && <LoadingProgress label={candidate ? '正在渲染画布…' : '正在生成新版演示…'}
+            rendering={candidate !== null} />}
           {error && <p className="workspace-status" role="alert">{error}</p>}
         </section>
         <section className="workspace-panel" aria-labelledby="versions-title">
@@ -147,7 +153,8 @@ export function LessonWorkspace({ session, onSave }: { session: StudySession; on
         </section>
       </aside>
     </div>
-    {practicing && <QuizPanel key={current.id} owner={session.id} version={current.id} context={context}
+    {practicing && <QuizPanel key={current.id} owner={{ sessionId: session.id, accountId }}
+      version={current.id} context={context}
       onReturn={(suggestion) => {
         if (suggestion) setAskDraft(suggestion)
         setMode('ask')

@@ -5,7 +5,7 @@ import httpx
 from pydantic import Field, TypeAdapter, UUID4, model_validator
 
 from .learning import LearningContext
-from .model import GenerationError, ModelSettings, request_json
+from .model import GenerationError, ModelSettings, request_json, teaching_material
 from .schemas import StrictModel, bounded_text
 
 Topic = Annotated[str, bounded_text(80)]
@@ -90,7 +90,7 @@ CHALLENGE_PROMPT = """学生质疑一道中文数学或计算机选择题。质�
 valid 表示题目合理，invalid 表示有问题，uncertain 表示证据不足。"""
 
 
-async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, replacement=None, excluded=()):
+async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, replacement=None, excluded=(), profile=None):
     settings = ModelSettings.from_environment()
     if replacement:
         scope = {"count": 1, "required_topics": [replacement["topic"]], "replace": replacement["stem"],
@@ -100,7 +100,7 @@ async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, repla
         if previous:
             scope.update(previous)
     material = context.model_dump(mode="json", exclude={"previous_id", "version_id"})
-    request = {"context": material, "scope": scope, "excluded_stems": list(excluded)}
+    request = teaching_material({"context": material, "scope": scope, "excluded_stems": list(excluded)}, profile)
     used_stems = {stem.casefold() for stem in excluded}
     feedback = []
     for _ in range(2):

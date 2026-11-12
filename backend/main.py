@@ -1,3 +1,4 @@
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -8,8 +9,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from . import quiz_store
+from .accounts import Profile
+from .accounts import router as accounts_router
 from .learning import AskRequest, Explanation, ask_lesson
-from .model import REVISION_PROMPT, SYSTEM_PROMPT, GenerationError, ModelSettings, generate_lesson, model_client
+from .model import REVISION_PROMPT, SYSTEM_PROMPT, GenerationError, ModelSettings, generate_lesson, model_client, teaching_material
 from .quizzes import router as quiz_router
 from .schemas import GenerateRequest, Lesson, LessonResponse, ReviseRequest
 
@@ -25,6 +28,7 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="演算室", lifespan=lifespan)
+app.include_router(accounts_router)
 app.include_router(quiz_router)
 
 
@@ -36,9 +40,9 @@ async def validation_error(_request: Request, error: RequestValidationError):
 
 
 @app.post("/api/lessons/ask", response_model=Explanation)
-async def explain(request: AskRequest, client: httpx.AsyncClient = Depends(model_client)):
+async def explain(request: AskRequest, profile: Profile, client: httpx.AsyncClient = Depends(model_client)):
     try:
-        return await ask_lesson(request, client)
+        return await ask_lesson(request, client, profile=profile)
     except GenerationError as error:
         raise HTTPException(
             status_code=error.status_code,
@@ -58,13 +62,17 @@ async def request_lesson(content: str, client: httpx.AsyncClient, prompt: str):
 
 
 @app.post("/api/lessons/generate", response_model=LessonResponse)
-async def create_lesson(request: GenerateRequest, client: httpx.AsyncClient = Depends(model_client)):
-    return await request_lesson(request.question, client, SYSTEM_PROMPT)
+async def create_lesson(request: GenerateRequest, profile: Profile, client: httpx.AsyncClient = Depends(model_client)):
+    content = request.question
+    if profile is not None:
+        content = json.dumps(teaching_material(request.model_dump(), profile), ensure_ascii=False)
+    return await request_lesson(content, client, SYSTEM_PROMPT)
 
 
 @app.post("/api/lessons/revise", response_model=LessonResponse)
-async def revise_lesson(request: ReviseRequest, client: httpx.AsyncClient = Depends(model_client)):
-    return await request_lesson(request.model_dump_json(), client, REVISION_PROMPT)
+async def revise_lesson(request: ReviseRequest, profile: Profile, client: httpx.AsyncClient = Depends(model_client)):
+    content = teaching_material(request.model_dump(mode="json"), profile)
+    return await request_lesson(json.dumps(content, ensure_ascii=False), client, REVISION_PROMPT)
 
 
 @app.get("/api/examples/{example_id}", response_model=LessonResponse)

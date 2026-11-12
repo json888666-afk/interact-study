@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Lesson } from './lessons'
+import { LoadingProgress } from './loading-progress'
 
 const MESSAGE_CHANNEL = 'interact-study-preview'
 const READY_TIMEOUT_MS = 8000
@@ -107,7 +108,9 @@ function PreviewFrame({ lesson, onResult }: { lesson: Lesson; onResult?: (result
 
   return (
     <>
-      {status.kind === 'loading' && <p className="preview-loading" role="status">正在加载预览…</p>}
+      {status.kind === 'loading' && <div className="preview-loading">
+        <LoadingProgress label="正在渲染画布…" rendering />
+      </div>}
       {status.kind === 'error'
         ? <div className="preview-error" role="alert"><strong>预览运行失败</strong><p>{status.message}</p></div>
         : listening && <iframe ref={iframe} srcDoc={srcDoc} sandbox="allow-scripts" title="交互教学预览" />}

@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from typing import Annotated
 from uuid import uuid4
 
@@ -7,13 +8,34 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import UUID4
 
 from . import quiz_store as store
+from .accounts import Profile, User
 from .model import GenerationError, model_client
 from .quiz_models import AnswerRequest, ChallengeRequest, QuizRequest, build_quiz, review_challenge
 
 router = APIRouter(prefix="/api/quizzes")
-Owner = Annotated[UUID4, Header(alias="X-Study-Session")]
 Client = Annotated[httpx.AsyncClient, Depends(model_client, scope="request")]
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class QuizOwner:
+    learning_session: str
+    account_id: str | None
+
+    @property
+    def key(self):
+        return f"account:{self.account_id}:{self.learning_session}" if self.account_id else self.learning_session
+
+
+def quiz_owner(study_session: Annotated[UUID4, Header(alias="X-Study-Session")], user: User,
+               expected_account: Annotated[str | None, Header(alias="X-Study-Account")] = None):
+    account_id = user["id"] if user else None
+    if expected_account is not None and expected_account != (account_id or "guest"):
+        raise HTTPException(409, "登录状态已变化，请刷新页面后继续。")
+    return QuizOwner(str(study_session), account_id)
+
+
+Owner = Annotated[QuizOwner, Depends(quiz_owner)]
 
 
 def practice_scope(quiz):
@@ -32,9 +54,9 @@ def practice_scope(quiz):
             "minimum_counts": minimum}
 
 
-async def generate_job(owner, quiz_id, request, client, previous, excluded):
+async def generate_job(owner, quiz_id, request, client, previous, excluded, profile):
     try:
-        draft = await build_quiz(request, client, previous=previous, excluded=excluded)
+        draft = await build_quiz(request, client, previous=previous, excluded=excluded, profile=profile)
         update = {"status": "ready", "topics": draft.topics, "questions": [
             {"id": str(uuid4()), **question.model_dump()} for question in draft.questions
         ]}
@@ -51,34 +73,35 @@ async def generate_job(owner, quiz_id, request, client, previous, excluded):
 
 
 @router.post("", status_code=202)
-def start_quiz(request: QuizRequest, owner: Owner, jobs: BackgroundTasks, client: Client):
-    owner = str(owner)
+def start_quiz(request: QuizRequest, owner: Owner, jobs: BackgroundTasks, client: Client, profile: Profile):
     with store.database() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        old = store.latest(connection, owner, str(request.version_id))
+        old = store.latest(connection, owner.key, str(request.version_id))
         if old and (old["id"] != str(request.previous_id)
                     or (old["status"] != "failed" and not old["report"])):
-            return store.public(old)
+            return store.public(old, connection)
         if old and not request.history:
             request = QuizRequest.model_validate(request.model_dump(mode="json") | {"history": old["context"]["history"]})
-        quiz = store.insert(connection, owner, str(request.version_id), request.model_dump(mode="json"))
+        quiz = store.insert(connection, owner.key, str(request.version_id), request.model_dump(mode="json"),
+                            account_id=owner.account_id, learning_session=owner.learning_session)
+        response = store.public(quiz, connection)
     previous = practice_scope(old) if old else None
     excluded = [question["stem"] for question in old["questions"] + old["retired"]] if old else []
-    jobs.add_task(generate_job, owner, quiz["id"], request, client, previous, excluded)
-    return store.public(quiz)
+    jobs.add_task(generate_job, owner.key, quiz["id"], request, client, previous, excluded, profile)
+    return response
 
 
 @router.get("")
 def find_quiz(version_id: UUID4, owner: Owner):
     with store.database() as connection:
-        quiz = store.latest(connection, str(owner), str(version_id))
-    return store.public(quiz) if quiz else None
+        quiz = store.latest(connection, owner.key, str(version_id))
+        return store.public(quiz, connection) if quiz else None
 
 
 @router.get("/{quiz_id}")
 def get_quiz(quiz_id: UUID4, owner: Owner):
     with store.database() as connection:
-        return store.public(store.owned(connection, str(owner), str(quiz_id)))
+        return store.public(store.owned(connection, owner.key, str(quiz_id)), connection)
 
 
 @router.post("/{quiz_id}/questions/{question_id}/answer")
@@ -86,7 +109,7 @@ def answer_question(quiz_id: UUID4, question_id: UUID4, request: AnswerRequest, 
     question_id = str(question_id)
     with store.database() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        quiz = store.owned(connection, str(owner), str(quiz_id))
+        quiz = store.owned(connection, owner.key, str(quiz_id))
         question = store.find_question(quiz, question_id)
         if quiz["reviews"].get(question_id, {}).get("status") in store.PAUSED:
             raise HTTPException(409, "此题正在核查或更换，可先作答其他题目。")
@@ -99,7 +122,7 @@ def answer_question(quiz_id: UUID4, question_id: UUID4, request: AnswerRequest, 
                 "selected": sorted(selected), "is_correct": selected == set(question["correct"]),
             }
             store.save(connection, quiz)
-    return store.public(quiz)
+        return store.public(quiz, connection)
 
 
 async def challenge_job(owner, quiz_id, question, quiz, objection, confirmed_invalid, client):
@@ -156,7 +179,7 @@ async def challenge_job(owner, quiz_id, question, quiz, objection, confirmed_inv
 @router.post("/{quiz_id}/questions/{question_id}/challenge", status_code=202)
 def challenge(quiz_id: UUID4, question_id: UUID4, request: ChallengeRequest,
               owner: Owner, jobs: BackgroundTasks, client: Client):
-    owner, quiz_id, question_id = str(owner), str(quiz_id), str(question_id)
+    owner, quiz_id, question_id = owner.key, str(quiz_id), str(question_id)
     with store.database() as connection:
         connection.execute("BEGIN IMMEDIATE")
         quiz = store.owned(connection, owner, quiz_id)
@@ -165,7 +188,7 @@ def challenge(quiz_id: UUID4, question_id: UUID4, request: ChallengeRequest,
         if previous.get("status") == "pending" or (
             previous.get("status") == "valid" and previous.get("objection") == request.objection
         ):
-            return store.public(quiz)
+            return store.public(quiz, connection)
         confirmed_invalid = previous.get("confirmed_invalid", False)
         quiz["reviews"][question_id] = {
             "status": "pending", "objection": request.objection,
@@ -174,5 +197,6 @@ def challenge(quiz_id: UUID4, question_id: UUID4, request: ChallengeRequest,
             "basis": previous.get("basis", ""),
         }
         store.save(connection, quiz)
+        response = store.public(quiz, connection)
     jobs.add_task(challenge_job, owner, quiz_id, question, quiz, request.objection, confirmed_invalid, client)
-    return store.public(quiz)
+    return response

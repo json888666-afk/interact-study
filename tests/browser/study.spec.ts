@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openFixtureLesson } from './fixtures'
 
 const previewTitle = '交互教学预览'
 
@@ -25,9 +26,8 @@ async function mockLesson(page: Page, javascript: string) {
 }
 
 test('quadratic slider changes the preview and can reset', async ({ page }) => {
-  await page.goto('/')
-  await page.getByRole('button', { name: /二次函数参数/ }).click()
-  await expect(page.getByText('预置案例', { exact: true })).toBeVisible()
+  await openFixtureLesson(page, 'quadratic')
+  await expect(page.getByText('实时生成', { exact: true })).toBeVisible()
   const frame = page.frameLocator('iframe')
   await expect(frame.getByText('开口向上。', { exact: false })).toBeVisible()
   await frame.getByRole('slider', { name: '参数 a' }).fill('-1')
@@ -38,8 +38,7 @@ test('quadratic slider changes the preview and can reset', async ({ page }) => {
 
 test('recursion steps through stack and returns 24 on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 })
-  await page.goto('/')
-  await page.getByRole('button', { name: /递归调用栈/ }).click()
+  await openFixtureLesson(page, 'recursion')
   const frame = page.frameLocator('iframe')
   const next = frame.getByRole('button', { name: '下一步' })
   await next.click()
@@ -92,8 +91,7 @@ test('preview surfaces script errors and can regenerate', async ({ page }) => {
 })
 
 test('rejects old preview messages and messages with a stale preview identifier', async ({ page }) => {
-  await page.goto('/')
-  await page.getByRole('button', { name: /二次函数参数/ }).click()
+  await openFixtureLesson(page, 'quadratic')
   const iframe = page.getByTitle(previewTitle)
   await expect(page.frameLocator('iframe').getByRole('slider')).toBeVisible()
   await iframe.evaluate((element: HTMLIFrameElement) => {
@@ -133,6 +131,26 @@ test('failed requests and clarification retain the question', async ({ page }) =
   await expect(page.getByLabel('你想弄懂什么？')).toHaveValue(question)
 })
 
+test('model wait reaches 99% without announcing canvas rendering early', async ({ page }) => {
+  let finish!: () => void
+  const pending = new Promise<void>((resolve) => { finish = resolve })
+  await page.route('**/api/lessons/generate', async (route) => {
+    await pending
+    await route.fulfill({ json: { source: 'live', result: { kind: 'clarification', message: '请补充函数表达式。' } } })
+  })
+  await page.goto('/')
+  await submitQuestion(page)
+  try {
+    const progress = page.getByRole('status').filter({ hasText: '正在生成教学页面' })
+    await expect(progress.getByText('99%', { exact: true })).toBeVisible({ timeout: 3500 })
+    await expect(page.getByText('正在渲染画布…', { exact: true })).toHaveCount(0)
+  } finally {
+    finish()
+  }
+  await expect(page.getByText('请补充函数表达式。')).toBeVisible()
+  await expect(page.getByText('99%', { exact: true })).toHaveCount(0)
+})
+
 test('revision switches automatically and restores history after refresh', async ({ page }) => {
   await page.route('**/api/lessons/revise', async (route) => {
     const { question, instruction, lesson } = route.request().postDataJSON()
@@ -145,8 +163,7 @@ test('revision switches automatically and restores history after refresh', async
         javascript: 'document.querySelector("#pause").onclick = (event) => { event.target.textContent = "继续"; };' },
     } })
   })
-  await page.goto('/')
-  await page.getByRole('button', { name: /递归调用栈/ }).click()
+  await openFixtureLesson(page, 'recursion')
   await page.getByRole('button', { name: '修改演示' }).click()
   await page.getByLabel('你想怎样调整这个演示？').fill('增加暂停按钮')
   await page.getByRole('button', { name: '发送修改' }).click()
@@ -170,8 +187,7 @@ test('a broken revision preserves the current iframe and its slider state', asyn
       source: 'live', result: { ...lesson, javascript: 'throw new Error("候选脚本失败")' },
     } })
   })
-  await page.goto('/')
-  await page.getByRole('button', { name: /二次函数参数/ }).click()
+  await openFixtureLesson(page, 'quadratic')
   const slider = page.frameLocator('iframe').getByRole('slider')
   await slider.fill('-1')
   await page.getByRole('button', { name: '修改演示' }).click()

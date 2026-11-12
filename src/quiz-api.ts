@@ -20,6 +20,7 @@ export type Quiz = {
   status: 'generating' | 'ready' | 'failed'
   message: string
   questions: Question[]
+  ranking: { enabled: boolean; session_point: 0 | 1 }
   report: {
     total: number
     correct: number
@@ -30,15 +31,21 @@ export type Quiz = {
   } | null
 }
 
-export function quizRequest<T>(owner: string, path: string, signal: AbortSignal, body?: object) {
+export type QuizIdentity = { sessionId: string; accountId?: string }
+
+export function quizRequest<T>(owner: QuizIdentity, path: string, signal: AbortSignal, body?: object) {
   return learningRequest<T>('/api/quizzes' + path, {
     method: body ? 'POST' : 'GET',
-    headers: { 'Content-Type': 'application/json', 'X-Study-Session': owner },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Study-Session': owner.sessionId,
+      'X-Study-Account': owner.accountId ?? 'guest',
+    },
     signal,
     body: body ? JSON.stringify(body) : undefined,
   })
 }
 
-export function startQuiz(owner: string, version: string, context: LearningContext, signal: AbortSignal, previous?: string) {
+export function startQuiz(owner: QuizIdentity, version: string, context: LearningContext, signal: AbortSignal, previous?: string) {
   return quizRequest<Quiz>(owner, '', signal, { ...context, version_id: version, previous_id: previous })
 }

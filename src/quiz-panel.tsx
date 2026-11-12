@@ -1,6 +1,7 @@
+import { leaderboardLink } from './account-pages'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { LearningContext } from './learning-api'
-import { quizRequest, startQuiz, type Question, type Quiz } from './quiz-api'
+import { quizRequest, startQuiz, type Question, type Quiz, type QuizIdentity } from './quiz-api'
 
 const awaitingReview = (question: Question) => question.review?.status === 'pending'
 const paused = (question: Question) => awaitingReview(question) || question.review?.status === 'replacement_failed'
@@ -65,7 +66,7 @@ function QuestionCard({ question, busy, act }: {
 }
 
 export function QuizPanel({ owner, version, context, onReturn }: {
-  owner: string
+  owner: QuizIdentity
   version: string
   context: LearningContext
   onReturn: (suggestion: string) => void
@@ -111,7 +112,7 @@ export function QuizPanel({ owner, version, context, onReturn }: {
       active.current?.abort()
       active.current = null
     }
-  }, [owner, version])
+  }, [owner.sessionId, owner.accountId, version])
 
   const waiting = quiz && (quiz.status === 'generating' || quiz.questions.some(awaitingReview))
   useEffect(() => {
@@ -129,7 +130,7 @@ export function QuizPanel({ owner, version, context, onReturn }: {
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [quiz, waiting, busy, error, owner])
+  }, [quiz, waiting, busy, error, owner.sessionId, owner.accountId])
 
   function restart() {
     void run((signal) => startQuiz(owner, version, context, signal, quiz?.id), true)
@@ -157,9 +158,12 @@ export function QuizPanel({ owner, version, context, onReturn }: {
       {quiz?.status === 'failed' && <div role="alert"><p>{quiz.message}</p>
         <button className="primary-button" type="button" disabled={busy} onClick={restart}>重新出题</button>
       </div>}
-      {report && <section className="quiz-report" aria-label="练习报告">
+      {report && quiz && <section className="quiz-report" aria-label="练习报告">
         <h3>{report.passed ? '练习通过' : '可以再练习'}</h3>
         <p>答对 {report.correct} / {report.total} 题 · 正确率 {report.percent}%</p>
+        <p>{quiz.ranking.enabled
+          ? '本次学习会话积分 ' + quiz.ranking.session_point
+          : '访客练习 · 登录后新建练习可参与排名。'} <a href={leaderboardLink()}>查看排行榜</a></p>
         <ul>{report.topics.map((item) => <li key={item.topic}>{item.topic} · {item.correct} / {item.total}</li>)}</ul>
         {report.wrong_ids.length > 0 && <div className="quiz-actions">
           <span>查看错题</span>

@@ -16,11 +16,6 @@ export type LessonRequest =
   | { source: 'live'; question: string }
   | { source: 'example'; id: string; question: string }
 
-export const examples = [
-  { id: 'quadratic', subject: '数学', title: '二次函数参数', description: '拖动参数，观察抛物线的变化。', mark: 'ƒ(x)' },
-  { id: 'recursion', subject: '计算机', title: '递归调用栈', description: '单步执行，跟踪栈帧与返回值。', mark: '↳' },
-]
-
 export async function fetchLesson(request: LessonRequest, signal: AbortSignal): Promise<LessonResponse> {
   const response = request.source === 'example'
     ? await fetch('/api/examples/' + encodeURIComponent(request.id), { signal })

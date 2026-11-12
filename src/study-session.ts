@@ -16,6 +16,10 @@ export type StudySession = {
 
 const STORAGE_KEY = 'interact-study.session.v1'
 
+function storageKey(accountId?: string) {
+  return accountId ? STORAGE_KEY + '.' + accountId : STORAGE_KEY
+}
+
 export function makeVersion(lesson: Lesson, description: string, source: LessonVersion['source']): LessonVersion {
   return { id: crypto.randomUUID(), lesson, description, source }
 }
@@ -29,9 +33,9 @@ export function currentVersion(session: StudySession): LessonVersion {
   return session.versions.find((version) => version.id === session.currentId)!
 }
 
-export function loadStudySession(): StudySession | null {
+export function loadStudySession(accountId?: string): StudySession | null {
   try {
-    const value = localStorage.getItem(STORAGE_KEY)
+    const value = localStorage.getItem(storageKey(accountId))
     if (!value) return null
     const session: StudySession = JSON.parse(value)
     const request = session?.request
@@ -54,6 +58,6 @@ export function loadStudySession(): StudySession | null {
   }
 }
 
-export function saveStudySession(session: StudySession) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
+export function saveStudySession(session: StudySession, accountId?: string) {
+  localStorage.setItem(storageKey(accountId), JSON.stringify(session))
 }

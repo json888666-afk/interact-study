@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { askLesson, type LearningContext, type Turn } from './learning-api'
+import { LoadingProgress } from './loading-progress'
 
 export function AskPanel({ context, draft, setDraft, onAnswer }: {
   context: LearningContext
@@ -74,7 +75,7 @@ export function AskPanel({ context, draft, setDraft, onAnswer }: {
           accept="image/png,image/jpeg,image/webp" onChange={(event) => chooseImage(event.target.files?.[0])} />
         <button className="primary-button" type="submit" disabled={busy || !draft.trim()}>发送问题</button>
       </form>
-      {busy && <p role="status">正在整理解释…</p>}
+      {busy && <LoadingProgress label="正在整理解释…" />}
       {error && <p role="alert">{error}</p>}
     </section>
   )

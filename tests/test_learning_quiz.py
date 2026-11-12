@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from backend import quiz_store
 from backend.main import app, model_client
+from backend.goals import GOAL_PROMPT
 from backend.quiz_models import CHALLENGE_PROMPT, DRAFT_PROMPT, FIRST_REVIEW_PROMPT
 
 
@@ -16,6 +17,10 @@ def question(index=0, topic="开口", kind="single"):
         "options": ["甲", "乙", "丙", "丁"],
         "correct": [0] if kind == "single" else [0, 1], "explanation": "解析",
     }
+
+
+def legacy_draft():
+    return draft()
 
 
 def draft():
@@ -31,17 +36,23 @@ def client(monkeypatch):
         monkeypatch.setenv(prefix + "_BASE_URL", f"https://{name}.example/v1")
         monkeypatch.setenv(prefix + "_API_KEY", "test-key")
         monkeypatch.setenv(prefix + "_NAME", name)
+    mock_upstream(lambda *_args: {})
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
 
 
-def mock_upstream(handler, inspect_request=None):
+def mock_upstream(handler, inspect_request=None, goal_handler=None):
     def respond(request):
         if inspect_request is not None:
             inspect_request(request)
         payload = json.loads(request.content)
-        result = handler(payload["messages"][0]["content"], payload["messages"][1]["content"], payload["model"])
+        prompt = payload["messages"][0]["content"]
+        content = payload["messages"][1]["content"]
+        if prompt == GOAL_PROMPT:
+            result = goal_handler(json.loads(content)) if goal_handler else {"verdict": "approved", "message": "通过"}
+        else:
+            result = handler(prompt, content, payload["model"])
         if isinstance(result, httpx.Response):
             return result
         return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(result)}}]})
@@ -128,7 +139,7 @@ def test_initial_review_retry_then_grade_and_replace_single_question(client, qui
         response = client.post(f"{path}/questions/{question_id}/answer", headers=owner, json={"selected": [0]})
         assert response.status_code == 200
     report = response.json()["report"]
-    assert report["percent"] == 90 and not report["passed"]
+    assert report["percent"] == 90 and report["passed"]
     multi = f"{path}/questions/{ids[1]}"
     duplicate = client.post(multi + "/answer", headers=owner, json={"selected": [0, 1]})
     assert duplicate.json()["questions"][1]["answer"]["selected"] == [0]

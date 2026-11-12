@@ -11,6 +11,11 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class LearnerProfile(StrictModel):
+    education_stage: Literal["幼儿园", "小学", "初中", "高中", "本科", "硕士", "博士"]
+    goal: Annotated[str, bounded_text(300)]
+
+
 class GenerateRequest(StrictModel):
     question: Annotated[str, bounded_text(2000)]
 
