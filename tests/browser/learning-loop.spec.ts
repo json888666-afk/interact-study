@@ -254,3 +254,43 @@ test('unknown answer locks the next question until one whole round passes and ce
   await celebration.getByRole('button', { name: '查看练习报告' }).click()
   await expect(page.getByRole('region', { name: '练习报告' })).toBeFocused()
 })
+
+test('exam choice shows a verified citation and unlocks its link after submission', async ({ page }) => {
+  const quiz: Quiz = {
+    id: 'exam-quiz', version_id: 'version', status: 'exam_choice', message: '暂未找到可核验的真题。',
+    exam: { exam: '数学测试', subject: '数学' },
+    public_papers: [{ url: 'https://publisher.example/public', title: '公开数学试卷', year: 2024, publisher: '考试机构' }],
+    ranking: { enabled: false, session_point: 0 }, questions: [], report: null,
+  }
+  await page.route('**/api/quizzes**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/exam-choice')) {
+      expect(route.request().postDataJSON()).toEqual({ action: 'retry' })
+      quiz.status = 'ready'
+      quiz.message = ''
+      quiz.questions = [{
+        id: 'past', kind: 'single', topic: '开口', stem: '原卷选择题', origin: 'past', options: ['向上', '向下'],
+        source: { exam: '数学测试', subject: '数学', year: 2024, paper: 'A卷', number: '1', publisher: '考试机构' },
+      }, {
+        id: 'simulated', kind: 'multiple', topic: '开口', stem: '模拟选择题', origin: 'simulated', options: ['向上', '向下'],
+      }]
+    } else if (path.endsWith('/past/answer')) {
+      quiz.questions[0].answer = { selected: [0], is_correct: true }
+      quiz.questions[0].source!.url = 'https://publisher.example/original'
+    }
+    await route.fulfill({ json: quiz })
+  })
+  await openFixtureLesson(page, 'quadratic')
+  await page.getByRole('button', { name: '开始练习' }).click()
+  await expect(page.getByRole('button', { name: '继续做模拟题' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '查看公开试卷' })).toHaveAttribute('href', 'https://publisher.example/public')
+  await page.getByRole('button', { name: '重试搜索' }).click()
+  await expect(page.getByText('真题', { exact: true })).toBeVisible()
+  await expect(page.getByText(/2024 年.*A卷.*第 1 题.*考试机构/)).toBeVisible()
+  await expect(page.getByRole('link', { name: '查看原始试卷' })).toHaveCount(0)
+  await page.getByRole('radio', { name: 'A. 向上' }).check()
+  await page.getByRole('button', { name: '提交答案' }).click()
+  await expect(page.getByRole('link', { name: '查看原始试卷' })).toHaveAttribute('href', 'https://publisher.example/original')
+  await page.getByRole('button', { name: '下一题' }).click()
+  await expect(page.getByText('模拟题', { exact: true })).toBeVisible()
+})

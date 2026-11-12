@@ -62,6 +62,12 @@ Copy-Item .env.example .env
 
 SQLite 默认保存在项目的 `.local/quiz.sqlite3`。从 E 盘工作区运行时，数据库位于 E 盘。可在 `.env` 中用 `QUIZ_DB_PATH` 指定其他位置。匿名练习关联当前浏览器的学习会话与演示版本。
 
+### 真题练习
+
+联网查找真题使用 DeepSeek 官方 Search 和 Fetch API。将检索密钥写入本机 `.env` 的 `EXAM_DEEPSEEK_API_KEY`。明确备考时，默认 `EXAM_QUIZ_MODE=debug` 生成 1 道真题与 1 道模拟题，设为 `standard` 后生成 3 道真题与 7 道模拟题。备考真题不足时，学生可以重试或选择模拟练习。
+
+按当前课程考点联网搜索。只有能从发布页核实出处、站内使用依据、原题和答案的题目才进入练习。图片版试卷从发布页提供的原始图片进行两次识别；读数、公式、选项或答案不一致时跳过。备考时若仅核实了公开来源，页面提供原卷链接，用户可重试或继续做模拟题。采用的题目随本次练习保存，以便刷新恢复。 [DeepSeek 检索文档](https://api-docs.deepseek.com/guides/search/) · [DeepSeek 图像识别](https://api-docs.deepseek.com/guides/vision/)
+
 「质疑此题」使用独立审核服务，在 `.env` 填写 `REVIEW_MODEL_BASE_URL`、`REVIEW_MODEL_API_KEY` 和 `REVIEW_MODEL_NAME` 后重启后端。审核确认有误时，只替换这一题，其余作答继续有效。常规问答、出题和判分使用已有配置即可。
 
 审核也可以使用 DeepSeek 官方 Flash，地址为 `https://api.deepseek.com`，模型名为 `deepseek-flash`。出题与复核使用各自的密钥和提示词。

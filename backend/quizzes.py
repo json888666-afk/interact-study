@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import uuid4
 
 import httpx
@@ -9,11 +9,14 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from pydantic import UUID4
 
 from . import quiz_store as store
-from .accounts import Profile, User, account_profile, learning_profile
+from .accounts import Profile, User, account_exam, account_profile, learning_profile
+from .exams import ExamUnavailable, exam_counts, find_exam_questions
+from .goals import ExamTarget
 from .model import GenerationError, model_client
 from .quiz_models import (
     MAIN_QUESTION_COUNT, AnswerRequest, ChallengeRequest, QuizRequest, analyze_drill, build_drill, build_quiz, review_challenge,
 )
+from .schemas import StrictModel
 
 router = APIRouter(prefix="/api/quizzes")
 Client = Annotated[httpx.AsyncClient, Depends(model_client, scope="request")]
@@ -51,17 +54,41 @@ def practice_scope(quiz):
     return {"required_topics": selected, "weak_topics": [topic for topic in selected if accuracy.get(topic, 1) < 1]}
 
 
-async def generate_job(owner, quiz_id, request, client, previous, excluded, profile):
+class ExamChoice(StrictModel):
+    action: Literal["retry", "simulated"]
+
+
+async def generate_job(owner, quiz_id, request, client, previous, excluded, profile, exam=None, account_id=None):
     try:
-        draft = await build_quiz(request, client, previous=previous, profile=profile, excluded=excluded)
-        update = {"status": "ready", "message": "", "topics": draft.topics, "questions": [
-            {"id": str(uuid4()), **question.model_dump()} for question in draft.questions
-        ]}
+        past = []
+        simulated_count = None
+        if exam:
+            if exam["simulated_only"]:
+                simulated_count = exam["past_count"] + exam["simulated_count"]
+            else:
+                target = ExamTarget.model_validate(exam["target"])
+                past = await find_exam_questions(target, request, client, count=exam["past_count"], excluded=excluded)
+                simulated_count = exam["simulated_count"] + exam["past_count"] - len(past)
+        elif account_id:
+            try:
+                past = await find_exam_questions(None, request, client, count=1, excluded=excluded)
+            except ExamUnavailable:
+                pass
+            if past:
+                simulated_count = MAIN_QUESTION_COUNT - len(past)
+        draft = await build_quiz(request, client, previous=previous, profile=profile, simulated_count=simulated_count,
+                                 past_questions=past, excluded=[*excluded, *(question["stem"] for question in past)])
+        questions = past + [question.model_dump() | {"origin": "simulated"} for question in draft.questions]
+        update = {"status": "ready", "message": "", "public_papers": [],
+                  "topics": list(dict.fromkeys(q["topic"] for q in questions)),
+                  "questions": [{"id": str(uuid4()), **question} for question in questions]}
+    except ExamUnavailable as error:
+        update = {"status": "exam_choice", "message": str(error), "public_papers": error.papers}
     except GenerationError as error:
-        update = {"status": "failed", "message": str(error)}
+        update = {"status": "exam_choice" if exam else "failed", "message": str(error)}
     except Exception:
         logger.exception("Quiz generation failed")
-        update = {"status": "failed", "message": "出题服务暂时无法完成请求，请重试。"}
+        update = {"status": "exam_choice" if exam else "failed", "message": "出题服务暂时无法完成请求，请重试。"}
     with store.database() as connection:
         connection.execute("BEGIN IMMEDIATE")
         try:
@@ -88,9 +115,35 @@ def start_quiz(request: QuizRequest, owner: Owner, jobs: BackgroundTasks, client
                             account_id=owner.account_id, learning_session=owner.learning_session)
         previous = practice_scope(old) if old else None
         excluded = store.seen_stems(old) if old else []
+        target = account_exam(connection, owner.account_id)
+        exam = None
+        if target:
+            past_count, simulated_count = exam_counts()
+            exam = {"target": target.model_dump(), "past_count": past_count, "simulated_count": simulated_count,
+                    "simulated_only": False, "previous": previous, "excluded": excluded}
+            quiz["exam"] = exam
+            store.save(connection, quiz)
         response = store.public(quiz, connection)
-    jobs.add_task(generate_job, owner.key, quiz["id"], request, client, previous, excluded, profile)
+    jobs.add_task(generate_job, owner.key, quiz["id"], request, client, previous, excluded, profile, exam, owner.account_id)
     return response
+
+
+@router.post("/{quiz_id}/exam-choice", status_code=202)
+def choose_exam(quiz_id: UUID4, choice: ExamChoice, owner: Owner, jobs: BackgroundTasks, client: Client, profile: Profile):
+    with store.database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        quiz = store.owned(connection, owner.key, str(quiz_id))
+        exam = quiz.get("exam")
+        if not exam or quiz["status"] not in {"generating", "exam_choice"}:
+            raise HTTPException(409, "当前练习无需选择真题检索方式。")
+        if quiz["status"] == "exam_choice":
+            exam["simulated_only"] = choice.action == "simulated"
+            quiz.update(status="generating", message="")
+            store.save(connection, quiz)
+            context = QuizRequest.model_validate(quiz["context"])
+            jobs.add_task(generate_job, owner.key, quiz["id"], context, client, exam["previous"], exam["excluded"],
+                          profile, exam, owner.account_id)
+        return store.public(quiz, connection)
 
 
 @router.get("")
@@ -284,7 +337,8 @@ def answer_drill(quiz_id: UUID4, parent_id: UUID4, question_id: UUID4, request: 
         return store.public(quiz, connection)
 
 
-async def challenge_job(owner, quiz_id, question, quiz, objection, confirmed_invalid, client, parent_id=None):
+async def challenge_job(owner, quiz_id, question, quiz, objection, confirmed_invalid, client, parent_id=None,
+                        allow_simulated=False):
     question_id = question["id"]
     replacement = None
     initial = quiz if parent_id is None else quiz["drills"][parent_id]
@@ -316,10 +370,21 @@ async def challenge_job(owner, quiz_id, question, quiz, objection, confirmed_inv
         try:
             context = QuizRequest.model_validate(quiz["context"])
             excluded = store.seen_stems(fresh)
-            draft = await build_quiz(context, client, replacement=question, excluded=excluded)
-            replacement = {"id": str(uuid4()), **draft.questions[0].model_dump()}
+            if question.get("origin") == "past" and not allow_simulated:
+                exam = fresh.get("exam")
+                target_exam = ExamTarget.model_validate(exam["target"]) if exam else None
+                past = await find_exam_questions(target_exam, context, client, count=1,
+                                                 excluded=excluded, replacement=question)
+                if not past:
+                    raise ExamUnavailable("未找到可核验的替代真题。")
+                replacement = {"id": str(uuid4()), **past[0]}
+            else:
+                draft = await build_quiz(context, client, replacement=question, excluded=excluded)
+                replacement = {"id": str(uuid4()), **draft.questions[0].model_dump(), "origin": "simulated"}
             if parent_id is not None:
                 replacement["points"] = question["points"]
+        except ExamUnavailable:
+            update.update(status="replacement_failed", can_replace_simulated=True)
         except Exception:
             logger.exception("Replacement generation failed")
             update["status"] = "replacement_failed"
@@ -333,7 +398,8 @@ async def challenge_job(owner, quiz_id, question, quiz, objection, confirmed_inv
         if replacement:
             index = next(i for i, item in enumerate(target["questions"]) if item["id"] == question_id)
             if replacement["stem"].casefold() in {stem.casefold() for stem in store.seen_stems(fresh)}:
-                target["reviews"][question_id].update(update | {"status": "replacement_failed"})
+                target["reviews"][question_id].update(update | {"status": "replacement_failed",
+                                                      "can_replace_simulated": question.get("origin") == "past"})
             else:
                 target["questions"][index] = replacement
                 target["answers"].pop(question_id, None)
@@ -381,12 +447,17 @@ def queue_challenge(quiz_id, question_id, request, owner, jobs, client, parent_i
         ):
             return store.public(quiz, connection)
         confirmed_invalid = previous.get("confirmed_invalid", False)
+        if request.allow_simulated and not (confirmed_invalid and previous.get("status") == "replacement_failed"
+                                            and previous.get("can_replace_simulated") and question.get("origin") == "past"):
+            raise HTTPException(409, "此题还不能替换为模拟题。")
         target["reviews"][question_id] = {
             "status": "pending", "objection": request.objection,
             "confirmed_invalid": confirmed_invalid,
             "basis": previous.get("basis", ""),
+            "can_replace_simulated": previous.get("can_replace_simulated", False),
         }
         store.save(connection, quiz)
         response = store.public(quiz, connection)
-    jobs.add_task(challenge_job, owner.key, quiz_id, question, quiz, request.objection, confirmed_invalid, client, parent_id)
+    jobs.add_task(challenge_job, owner.key, quiz_id, question, quiz, request.objection, confirmed_invalid, client, parent_id,
+                  request.allow_simulated)
     return response

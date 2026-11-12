@@ -36,6 +36,8 @@ def public_review(review):
     result = {"status": status, "message": message}
     if "objection" in review:
         result["objection"] = review["objection"]
+    if status == "replacement_failed" and review.get("can_replace_simulated"):
+        result.update(can_replace_simulated=True, message="暂未找到可核验的替代真题。可重试，或选择换成模拟题。")
     return result
 
 
@@ -98,7 +100,8 @@ def initialize():
                 quiz = unpack(row)
                 changed = False
                 if quiz["status"] == "generating":
-                    quiz.update(status="failed", message="服务重启中断了出题，请重试。")
+                    status = "exam_choice" if quiz.get("exam") else "failed"
+                    quiz.update(status=status, message="服务重启中断了出题，请重试。")
                     changed = True
                 reviews = list(quiz["reviews"].values())
                 for drill in quiz["drills"].values():
@@ -228,6 +231,11 @@ def public_question(question, container, *, drill=False):
     item = {key: question[key] for key in ("id", "kind", "topic", "stem", "options")}
     answer = container["answers"].get(question["id"])
     review = container["reviews"].get(question["id"])
+    item["origin"] = question.get("origin", "simulated")
+    if question.get("source"):
+        item["source"] = {key: value for key, value in question["source"].items() if key not in {"url", "license_url"}}
+        if answer and (not review or review["status"] not in PAUSED):
+            item["source"].update(url=question["source"]["url"], license_url=question["source"]["license_url"])
     if answer and (not review or review["status"] not in PAUSED):
         item["answer"] = {"selected": answer["selected"]}
         if not drill:
@@ -268,4 +276,8 @@ def public(quiz, connection):
         "questions": questions, "blocked_question_id": blocked_question(quiz),
         "ranking": {"enabled": account_id is not None, "session_point": int(earned)},
     }
+    if quiz.get("exam"):
+        result["exam"] = quiz["exam"]["target"]
+    if quiz["status"] == "exam_choice" and quiz.get("public_papers"):
+        result["public_papers"] = quiz["public_papers"]
     return result

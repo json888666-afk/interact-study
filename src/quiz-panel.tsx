@@ -22,7 +22,7 @@ function QuestionCard({ question, busy, act, drillMode = false, drillContent }: 
   const [challenging, setChallenging] = useState(() => paused(question))
   const [objection, setObjection] = useState(question.review?.objection ?? '')
   const inputId = useId()
-  const { answer, review } = question
+  const { answer, review, source } = question
   const hideAnswer = challenging || paused(question)
 
   function submit(event: FormEvent) {
@@ -37,7 +37,18 @@ function QuestionCard({ question, busy, act, drillMode = false, drillContent }: 
 
   return (
     <>
-      <p className="subject">{question.topic} · {question.kind === 'single' ? '单选' : '多选'}</p>
+      <p className="subject">{question.topic} · {question.kind === 'single' ? '单选' : '多选'}
+        {question.origin && <> · <strong>{question.origin === 'past' ? '真题' : '模拟题'}</strong>
+          {source?.imported && ' · 用户导入'}</>}
+      </p>
+      {source && <p className="quiz-source">
+        {source.exam} · {source.subject}{source.year && <> · {source.year} 年</>}
+        {source.paper && <> · {source.paper}</>} · 第 {source.number} 题 · {source.publisher}
+        {source.filename && <> · {source.filename}{source.page && <> 第 {source.page} 页</>}</>}
+        {source.attribution && <> · {source.attribution}</>}
+        {!hideAnswer && source.url && <> · <a href={source.url} target="_blank" rel="noreferrer">查看原始试卷</a></>}
+        {!hideAnswer && source.license_url && <> · <a href={source.license_url} target="_blank" rel="noreferrer">使用条款</a></>}
+      </p>}
       <form onSubmit={submit}>
         <fieldset className="quiz-options" disabled={busy || !!answer || hideAnswer}>
           <legend>{question.stem}</legend>
@@ -77,6 +88,8 @@ function QuestionCard({ question, busy, act, drillMode = false, drillContent }: 
       {awaitingReview(question)
         ? <LoadingProgress label="正在核查此题…" />
         : review && <p className="explanation" role="status">{review.message}</p>}
+      {review?.can_replace_simulated && <button className="quiet-button" type="button" disabled={busy}
+        onClick={() => act('challenge', { objection: review.objection, allow_simulated: true })}>换成模拟题</button>}
       {!awaitingReview(question) && <button className="quiet-button" type="button"
         disabled={busy} onClick={() => setChallenging(!challenging)}>
         {challenging ? '收起质疑' : '质疑此题'}
@@ -227,6 +240,10 @@ export function QuizPanel({ owner, version, context, onReturn }: {
     else void run((signal) => quizRequest<Quiz>(owner, '/' + quiz.id, signal))
   }
 
+  function chooseExam(action: 'retry' | 'simulated') {
+    if (quiz) void run((signal) => quizRequest<Quiz>(owner, `/${quiz.id}/exam-choice`, signal, { action }))
+  }
+
   const blockedIndex = quiz?.questions.findIndex((item) => item.id === quiz.blocked_question_id) ?? -1
   const position = blockedIndex >= 0 ? Math.min(index, blockedIndex) : index
   const question = quiz?.questions[position]
@@ -267,12 +284,25 @@ export function QuizPanel({ owner, version, context, onReturn }: {
         }} />}
       <div className="quiz-header">
         <div><h2 id="quiz-title">检查理解</h2><p>多选须完全正确。正确率达到 90% 即通过。</p>
-        </div>
+          {quiz?.exam && <p className="subject">备考 · {quiz.exam.exam} · {quiz.exam.subject}</p>}</div>
         <button className="quiet-button" type="button" onClick={() => onReturn(suggestion)}>返回学习</button>
       </div>
       {(!quiz || quiz.status === 'generating') && !error &&
-        <LoadingProgress label="正在出题并初审…" />}
+        <LoadingProgress label={quiz?.exam ? '正在准备备考题并初审…' : '正在出题并初审…'} />}
       {error && <div role="alert"><p>{error}</p><button className="quiet-button" disabled={busy} onClick={retry}>重试请求</button></div>}
+      {quiz?.status === 'exam_choice' && <div className="quiz-feedback" role="status">
+        <p>{quiz.message}</p>
+        {!!quiz.public_papers?.length && <ul className="public-exam-links">
+          {quiz.public_papers.map((paper) => <li key={paper.url}>
+            <a href={paper.url} target="_blank" rel="noreferrer">查看公开试卷</a>
+            <span>{paper.title} · {paper.publisher}</span>
+          </li>)}
+        </ul>}
+        <div className="quiz-actions">
+          <button className="quiet-button" type="button" disabled={busy} onClick={() => chooseExam('retry')}>重试搜索</button>
+          <button className="primary-button" type="button" disabled={busy} onClick={() => chooseExam('simulated')}>继续做模拟题</button>
+        </div>
+      </div>}
       {quiz?.status === 'failed' && <div role="alert"><p>{quiz.message}</p>
         <button className="primary-button" type="button" disabled={busy} onClick={restart}>重新出题</button>
       </div>}

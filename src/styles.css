@@ -84,6 +84,12 @@ a { color: inherit; }
 .quiz-feedback, .quiz-report { background: #f0f7f1; padding: 14px; border-radius: 10px; margin: 12px 0; }
 .quiz-report h3 { margin: 0; }
 .quiz-report .quiz-actions { margin-bottom: 10px; }
+.quiz-source { color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.quiz-source a { color: var(--green); }
+.public-exam-links { padding-inline-start: 20px; }
+.public-exam-links li { margin-block: 6px; overflow-wrap: anywhere; }
+.public-exam-links span { margin-inline-start: 8px; color: var(--muted); }
+.public-exam-links a { color: var(--green); }
 .quiz-options legend { white-space: pre-wrap; }
 .quiz-replacement-dialog { box-sizing: border-box; width: min(400px, calc(100% - 32px)); padding: 24px; color: var(--ink); background: white; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 18px 54px #19352930; }
 .quiz-replacement-dialog::backdrop { background: #172d2560; }

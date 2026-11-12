@@ -58,6 +58,7 @@ class FirstReview(StrictModel):
 
 class ChallengeRequest(StrictModel):
     objection: Annotated[str, bounded_text(2000)]
+    allow_simulated: bool = False
 
 
 class AnswerRequest(StrictModel):
@@ -193,17 +194,28 @@ async def build_drill(original, analysis, client, *, excluded, profile=None):
     raise GenerationError("drill_review_failed", "巩固题未通过初审，请重试。", 502)
 
 
-async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, replacement=None, excluded=(), profile=None):
+async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, replacement=None, excluded=(), profile=None,
+                     simulated_count=None, past_questions=()):
     settings = ModelSettings.from_environment()
     if replacement:
         scope = {"count": 1, "required_topics": [replacement["topic"]], "replace": replacement["stem"],
                  "kind": replacement["kind"]}
         if replacement.get("points"):
             scope["required_points"] = replacement["points"]
-    else:
+    elif simulated_count is None:
         scope = {"count": MAIN_QUESTION_COUNT, "kind": "恰好一道单选和一道多选"}
         if previous:
             scope.update(previous)
+    else:
+        kinds = {question["kind"] for question in past_questions}
+        required = {"single", "multiple"} - kinds
+        scope = {"count": simulated_count, "required_kinds": sorted(required), "style": "考试风格的原创模拟题"}
+        if simulated_count == 1 and required:
+            scope["kind"] = next(iter(required))
+        if previous:
+            scope["weak_topics"] = previous["required_topics"]
+        if past_questions:
+            scope["past_topics"] = sorted({question["topic"] for question in past_questions})
     material = context.model_dump(mode="json", exclude={"previous_id", "version_id"})
     request = teaching_material({"context": material, "scope": scope, "excluded_stems": list(excluded)}, profile)
     used_stems = {stem.casefold() for stem in excluded}
@@ -216,10 +228,12 @@ async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, repla
             if replacement:
                 valid = len(questions) == 1 and questions[0].topic == replacement["topic"] \
                     and questions[0].kind == replacement["kind"]
-            else:
+            elif simulated_count is None:
                 valid = len(questions) == MAIN_QUESTION_COUNT and {item.kind for item in questions} == {"single", "multiple"}
                 if previous:
                     valid = valid and set(draft.topics) == set(previous["required_topics"])
+            else:
+                valid = len(questions) == simulated_count and required <= {item.kind for item in questions}
             if not valid or any(item.stem.casefold() in used_stems for item in questions):
                 feedback = ["题量、知识点、题型或避重要求未满足。请检查后重新生成。"]
                 continue

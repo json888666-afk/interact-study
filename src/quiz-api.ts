@@ -6,11 +6,27 @@ export type Question = {
   topic: string
   stem: string
   options: string[]
+  origin?: 'past' | 'simulated'
+  source?: {
+    exam: string
+    subject: string
+    year: number | null
+    number: string
+    publisher: string
+    attribution?: string
+    paper?: string | null
+    imported?: boolean
+    filename?: string
+    page?: number
+    url?: string | null
+    license_url?: string | null
+  }
   answer?: { selected: number[]; is_correct?: boolean; unsure?: boolean; correct?: number[]; explanation?: string }
   review?: {
     status: 'pending' | 'valid' | 'uncertain' | 'failed' | 'replacement_failed' | 'replaced'
     message: string
     objection?: string
+    can_replace_simulated?: boolean
   }
   drill?: Drill
 }
@@ -27,7 +43,9 @@ export type Drill = {
 export type Quiz = {
   id: string
   version_id: string
-  status: 'generating' | 'ready' | 'failed'
+  status: 'generating' | 'ready' | 'failed' | 'exam_choice'
+  exam?: { exam: string; subject: string }
+  public_papers?: { url: string; title: string; year: number; publisher: string }[]
   message: string
   questions: Question[]
   blocked_question_id?: string | null
