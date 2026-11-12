@@ -10,6 +10,35 @@ from fastapi import HTTPException
 
 ROOT = Path(__file__).resolve().parents[1]
 PAUSED = {"pending", "replacement_failed"}
+CLARIFICATIONS = {
+    "terms": "如果疑问在术语上，可以按课程中该术语的定义理解，留意它和日常用法的区别。",
+    "conditions": "题目给出的条件需要一起使用。判断时请保留这些限制，再检查你的推理是否需要额外假设。",
+    "scope": "请先确认题目问的是某个例子，还是一类情况，再按题干指定的范围判断。",
+    "options": "请分别判断每个选项是否完整符合题干，留意选项中的限定词和题目的单选或多选要求。",
+    "method": "解法可以不同。请检查你的方法是否适用于题干给出的条件，并且回答了题目所问。",
+    "general": "请按题干给定的条件和提问范围判断。",
+}
+
+
+def public_review(review):
+    status = review["status"]
+    if status == "valid":
+        focus = CLARIFICATIONS.get(review.get("clarification_focus"), CLARIFICATIONS["general"])
+        message = "复核未发现题目有误，可以继续作答。" + focus
+    else:
+        message = {
+            "pending": "正在核查此题，可先回答其他题目。",
+            "replacement_failed": "已确认题目有误，但暂时未能生成新题，请重试换题。",
+            "replaced": "感谢你的纠正！这道题已更换，请继续作答。",
+            "uncertain": "暂时无法确认题目是否有误，可以补充具体疑问后重试。",
+            "failed": "审核未能完成，请稍后重试。",
+        }.get(status, "审核未能完成，请稍后重试。")
+    result = {"status": status, "message": message}
+    if "objection" in review:
+        result["objection"] = review["objection"]
+    return result
+
+
 def database_path() -> Path:
     override = os.getenv("QUIZ_DB_PATH", "").strip()
     return ROOT / (override or ".local/quiz.sqlite3")
@@ -72,6 +101,11 @@ def initialize():
                     quiz.update(status="failed", message="服务重启中断了出题，请重试。")
                     changed = True
                 reviews = list(quiz["reviews"].values())
+                for drill in quiz["drills"].values():
+                    reviews.extend(drill["reviews"].values())
+                    if drill["status"] == "generating":
+                        drill.update(status="failed", message="服务重启中断了巩固出题，请重试。")
+                        changed = True
                 for review in reviews:
                     if review["status"] == "pending":
                         status = "replacement_failed" if review.get("confirmed_invalid") else "failed"
@@ -89,6 +123,7 @@ def owner_key(owner: str) -> str:
 
 def unpack(row):
     quiz = json.loads(row["data"])
+    quiz.setdefault("drills", {})
     quiz["account_id"] = row["account_id"]
     quiz["learning_session"] = row["learning_session"]
     return quiz
@@ -113,7 +148,7 @@ def insert(connection, owner: str, version: str, context, *, account_id=None, le
     quiz = {
         "id": str(uuid4()), "version_id": version, "status": "generating",
         "message": "", "questions": [], "topics": [], "answers": {}, "reviews": {},
-        "report": None, "context": context, "retired": [],
+        "report": None, "context": context, "retired": [], "drills": {},
         "account_id": account_id, "learning_session": learning_session,
     }
     connection.execute(
@@ -130,10 +165,31 @@ def find_question(quiz, question_id: str):
     raise HTTPException(409, "这道题已更新，请刷新题目后继续。")
 
 
+def blocked_question(quiz):
+    for question in quiz["questions"]:
+        drill = quiz.get("drills", {}).get(question["id"])
+        if drill and drill["required"] and drill["status"] != "passed":
+            return question["id"]
+    return None
+
+
+def drill_questions(drill):
+    return drill["questions"] + drill["retired"] + [
+        item["question"] for round_items in drill["history"] for item in round_items
+    ]
+
+
+def seen_stems(quiz):
+    items = quiz["questions"] + quiz["retired"]
+    for drill in quiz["drills"].values():
+        items += drill_questions(drill)
+    return [item["stem"] for item in items]
+
+
 def calculate_report(quiz):
     questions = quiz["questions"]
     answers = quiz["answers"]
-    if not questions or len(answers) != len(questions):
+    if not questions or len(answers) != len(questions) or blocked_question(quiz):
         return None
     if any(quiz["reviews"].get(q["id"], {}).get("status") in PAUSED for q in questions):
         return None
@@ -168,25 +224,48 @@ def save(connection, quiz):
     )
 
 
+def public_question(question, container, *, drill=False):
+    item = {key: question[key] for key in ("id", "kind", "topic", "stem", "options")}
+    answer = container["answers"].get(question["id"])
+    review = container["reviews"].get(question["id"])
+    if answer and (not review or review["status"] not in PAUSED):
+        item["answer"] = {"selected": answer["selected"]}
+        if not drill:
+            item["answer"].update(is_correct=answer["is_correct"], unsure=answer.get("unsure", False))
+            if answer.get("explained"):
+                item["answer"].update(correct=question["correct"], explanation=question["explanation"])
+    if review:
+        item["review"] = public_review(review)
+    return item
+
+
+def public_drill(drill):
+    feedback = []
+    if drill["history"]:
+        for item in drill["history"][-1]:
+            question, answer = item["question"], item["answer"]
+            if not answer["is_correct"]:
+                feedback.append({key: question[key] for key in ("id", "stem", "options", "correct", "explanation")}
+                                | {"selected": answer["selected"]})
+    return {key: drill[key] for key in ("status", "round", "required", "message")} | {
+        "questions": [public_question(question, drill, drill=True) for question in drill["questions"]],
+        "feedback": feedback,
+    }
+
+
 def public(quiz, connection):
-    questions = []
-    for question in quiz["questions"]:
-        item = {key: question[key] for key in ("id", "kind", "topic", "stem", "options")}
-        question_id = question["id"]
-        answer = quiz["answers"].get(question_id)
-        if answer:
-            item["answer"] = {**answer, "correct": question["correct"], "explanation": question["explanation"]}
-        review = quiz["reviews"].get(question_id)
-        if review:
-            item["review"] = {key: review[key] for key in ("status", "message", "objection") if key in review}
-        questions.append(item)
+    questions = [public_question(question, quiz) for question in quiz["questions"]]
+    for item in questions:
+        drill = quiz["drills"].get(item["id"])
+        if drill and item.get("review", {}).get("status") not in PAUSED:
+            item["drill"] = public_drill(drill)
     account_id = quiz["account_id"]
     earned = account_id is not None and connection.execute(
         "SELECT 1 FROM quizzes WHERE account_id = ? AND learning_session = ? AND qualifies = 1 LIMIT 1",
         (account_id, quiz["learning_session"]),
     ).fetchone() is not None
     result = {key: quiz[key] for key in ("id", "version_id", "status", "message", "report")} | {
-        "questions": questions,
+        "questions": questions, "blocked_question_id": blocked_question(quiz),
         "ranking": {"enabled": account_id is not None, "session_point": int(earned)},
     }
     return result

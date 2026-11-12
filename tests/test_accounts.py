@@ -6,8 +6,11 @@ from fastapi.testclient import TestClient
 
 from backend import quiz_store as store
 from backend.accounts import passwords
+from backend.learning import ASK_PROMPT
 from backend.main import app
-from test_learning_quiz import client, legacy_draft, mock_upstream
+from backend.model import REVISION_PROMPT, SYSTEM_PROMPT
+from backend.quiz_models import CHALLENGE_PROMPT, DRAFT_PROMPT, DRILL_ANALYSIS_PROMPT, DRILL_DRAFT_PROMPT, FIRST_REVIEW_PROMPT
+from test_learning_quiz import client, context, draft, legacy_draft, mock_drill_response, mock_upstream, pass_drill, question, start
 
 PASSWORD = "Example-password-42"
 PROFILE = {"education_stage": "高中", "goal": "用图像理解二次函数"}
@@ -42,6 +45,159 @@ def test_register_login_logout_and_cross_origin(client):
     assert client.get("/api/auth/me", headers={"Cookie": "interact_study_login=" + token}).json()["user"] is None
     assert client.post("/api/auth/login", json={"username": "Alice", "password": "invalid-password"}).status_code == 401
     assert client.post("/api/auth/login", json={"username": "alice", "password": PASSWORD}).json()["user"] == user
+
+
+def test_model_uses_current_profile_without_sending_account_identity(client):
+    material = context(client)
+    lesson = material["lesson"]
+    updated = {"education_stage": "本科", "goal": "学习二次函数与导数的联系"}
+    seen = []
+
+    def handler(prompt, content, _model):
+        if prompt == SYSTEM_PROMPT and not content.startswith("{"):
+            seen.append((prompt, {}))
+            return lesson
+        data = json.loads(content)
+        assert {"username", "id", "account_id", "password"}.isdisjoint(data)
+        seen.append((prompt, data))
+        if prompt in (SYSTEM_PROMPT, REVISION_PROMPT):
+            return lesson
+        if prompt == ASK_PROMPT:
+            return {"answer": "看图中的开口和顶点。"}
+        if prompt == DRAFT_PROMPT:
+            return draft()
+        if prompt == FIRST_REVIEW_PROMPT:
+            assert "learner_profile" not in data and "learner_profile" not in data["context"]
+            return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
+        return mock_drill_response(prompt, data)
+
+    mock_upstream(handler)
+    generate = "/api/lessons/generate"
+    question_body = {"question": material["question"]}
+    assert client.post(generate, json=question_body).status_code == 200
+    assert seen[-1][1] == {}
+    alice = register(client, "Alice").json()["user"]
+    assert client.post(generate, json=question_body | {"learner_profile": updated}).status_code == 422
+    assert client.post(generate, json=question_body).status_code == 200
+    assert seen[-1][1]["learner_profile"] == PROFILE
+    for invalid in ({"goal": " "}, {"goal": "字" * 301}, {"education_stage": "其他"}):
+        assert client.post("/api/auth/profile", json=PROFILE | invalid).status_code == 422
+    assert client.post("/api/auth/profile", headers={"Origin": "https://other.example"}, json=updated).status_code == 403
+    assert client.post("/api/auth/profile", json=updated | {"id": alice["id"]}).status_code == 422
+    assert client.post("/api/auth/profile", json=updated | {"goal": "  " + updated["goal"] + "  "}).json()["user"]["profile"] == updated
+    assert client.get("/api/auth/me").json()["user"]["profile"] == updated
+    assert client.post("/api/lessons/ask", json=material | {"message": "怎么理解开口？"}).status_code == 200
+    assert client.post("/api/lessons/revise", json=question_body | {"lesson": lesson, "instruction": "增加坐标轴"}).status_code == 200
+    owner, path, quiz = start(client)
+    first = quiz["questions"][0]["id"]
+    assert client.post(f"{path}/questions/{first}/answer", headers=owner, json={"unsure": True}).status_code == 200
+    latest = updated | {"goal": "本周重点理解二次函数的顶点"}
+    assert client.post("/api/auth/profile", json=latest).status_code == 200
+    pass_drill(client, path, owner, first)
+    for prompt, expected in ((ASK_PROMPT, updated), (REVISION_PROMPT, updated), (DRAFT_PROMPT, updated),
+                             (DRILL_ANALYSIS_PROMPT, latest), (DRILL_DRAFT_PROMPT, latest)):
+        assert [data["learner_profile"] for call, data in seen if call == prompt] == [expected]
+
+    assert register(client, "Bob").json()["user"]["profile"] == PROFILE
+    assert client.post("/api/auth/profile", json=PROFILE | {"goal": "另一个账户的目标"}).status_code == 200
+    assert client.post("/api/auth/login", json={"username": "Alice", "password": PASSWORD}).json()["user"]["profile"] == latest
+    assert all(set(entry) == {"username", "rank", "points"} for entry in client.get("/api/leaderboard").json()["entries"])
+
+
+def test_ranked_quizzes_are_scoped_and_only_score_once_per_lesson(client):
+    def handler(prompt, content, _model):
+        data = json.loads(content)
+        if prompt == DRAFT_PROMPT:
+            if data["scope"]["count"] == 1:
+                assert "learner_profile" not in data
+                with store.database() as db:
+                    assert db.execute("SELECT SUM(qualifies) FROM quizzes").fetchone()[0] == 0
+                return {"topics": ["开口"], "questions": [question(300, kind="multiple")]}
+            quiz = draft()
+            assert data["scope"]["count"] == 2
+            if data.get("excluded_stems"):
+                assert data["scope"]["required_topics"] == ["开口"]
+                for index, item in enumerate(quiz["questions"]):
+                    item["stem"] = "新题 " + item["stem"]
+            return quiz
+        if prompt == FIRST_REVIEW_PROMPT:
+            return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
+        if prompt in (DRILL_ANALYSIS_PROMPT, DRILL_DRAFT_PROMPT):
+            return mock_drill_response(prompt, data)
+        assert prompt == CHALLENGE_PROMPT
+        assert set(data) == {"question", "objection"}
+        with store.database() as db:
+            assert db.execute("SELECT SUM(qualifies) FROM quizzes").fetchone()[0] == 1
+        return {"verdict": "invalid", "user_perspective": "理解范围有歧义", "objective": "需要补齐条件"}
+
+    mock_upstream(handler)
+    version = str(uuid4())
+    headers = {"X-Study-Session": str(uuid4())}
+
+    def new_quiz(version, previous=None):
+        request = context(client) | {"version_id": version, "previous_id": previous}
+        result = client.post("/api/quizzes", headers=headers, json=request)
+        assert result.status_code == 202
+        url = "/api/quizzes/" + result.json()["id"]
+        quiz = client.get(url, headers=headers).json()
+        assert quiz["status"] == "ready", quiz["message"]
+        return url, quiz
+
+    def answer(path, question_id, selected):
+        response = client.post(f"{path}/questions/{question_id}/answer", headers=headers, json={"selected": selected})
+        assert response.status_code == 200
+        result = response.json()
+        if result["blocked_question_id"] == question_id:
+            assert result["report"] is None and result["ranking"]["session_point"] == 0
+            return pass_drill(client, path, headers, question_id)
+        return result
+
+    guest_path, guest_quiz = new_quiz(version)
+    for item in guest_quiz["questions"]:
+        guest = answer(guest_path, item["id"], [0, 1] if item["kind"] == "multiple" else [0])
+    assert guest["report"]["passed"] and guest["ranking"] == {"enabled": False, "session_point": 0}
+    assert client.get("/api/leaderboard").json()["entries"] == DEMO_RANKS
+
+    alice = register(client, "Alice").json()["user"]
+    assert client.get(guest_path, headers=headers).status_code == 404
+    path, quiz = new_quiz(version)
+    assert quiz["id"] != guest_quiz["id"]
+    for item in quiz["questions"]:
+        result = answer(path, item["id"], [0, 1] if item["kind"] == "multiple" else [0])
+    assert result["report"]["percent"] == 100 and result["report"]["passed"]
+    assert result["ranking"] == {"enabled": True, "session_point": 1}
+    board = client.get("/api/leaderboard").json()
+    assert board["me"] == {"username": "Alice", "points": 1, "rank": 3, "listed_page": 1}
+    item = quiz["questions"][1]
+    assert answer(path, item["id"], [0]) == result
+    response = client.post(f"{path}/questions/{item['id']}/challenge", headers=headers,
+                           json={"objection": "多选题缺少条件吗？"})
+    assert response.status_code == 202
+    assert response.json()["ranking"]["session_point"] == 1
+    updated = client.get(path, headers=headers).json()
+    assert updated["ranking"]["session_point"] == 0
+    assert client.get("/api/leaderboard").json()["me"]["points"] == 0
+    assert answer(path, updated["questions"][1]["id"], [0, 1])["ranking"]["session_point"] == 1
+
+    for variant, previous in ((version, quiz["id"]), (str(uuid4()), None)):
+        other, new = new_quiz(variant, previous)
+        for item in new["questions"]:
+            answer(other, item["id"], [0, 1] if item["kind"] == "multiple" else [0])
+    assert client.get("/api/leaderboard").json()["me"]["points"] == 1
+
+    bob = register(client, "Bob").json()["user"]
+    assert client.get(path, headers=headers).status_code == 404
+    assert client.get(path, headers=headers | {"X-Study-Account": alice["id"]}).status_code == 409
+    assert client.get("/api/leaderboard").json()["me"] == {
+        "username": bob["username"], "points": 0, "rank": 4, "listed_page": 1,
+    }
+    bob_path, bob_quiz = new_quiz(version)
+    for item in bob_quiz["questions"]:
+        bob_result = answer(bob_path, item["id"], [0])
+    assert bob_result["report"]["percent"] == 50 and not bob_result["report"]["passed"]
+    assert bob_result["ranking"]["session_point"] == 0
+    client.post("/api/auth/logout")
+    assert client.get(guest_path, headers=headers).json() == guest
 
 
 def test_leaderboard_paginates_and_ranks_ties(client):
@@ -132,3 +288,35 @@ def test_goal_review_preserves_existing_profile_on_failure_and_extracts_exam(cli
     with store.database() as db:
         from backend.accounts import account_exam
         assert account_exam(db, user["id"]).exam == "MIT 6.005"
+
+
+def test_repractice_from_old_quiz_keeps_two_weakest_topics(client):
+    def handler(prompt, content, _model):
+        data = json.loads(content)
+        if prompt == DRAFT_PROMPT:
+            assert data["scope"]["count"] == 2
+            assert data["scope"]["required_topics"] == ["开口", "宽窄"]
+            assert data["scope"]["weak_topics"] == ["开口"]
+            return {"topics": ["开口", "宽窄"], "questions": [question(100), question(101, "宽窄", "multiple")]}
+        assert prompt == FIRST_REVIEW_PROMPT
+        return {"answers": [[0], [0, 1]], "issues": []}
+
+    mock_upstream(handler)
+    version, owner = (str(uuid4()) for _ in range(2))
+    material = context(client) | {"version_id": version}
+    legacy = legacy_draft()
+    legacy["topics"].append("顶点")
+    legacy["questions"][-1]["topic"] = "顶点"
+    questions = [{"id": str(uuid4()), **item} for item in legacy["questions"]]
+    with store.database() as db:
+        old = store.insert(db, owner, version, material)
+        old.update(status="ready", questions=questions, topics=legacy["topics"],
+                   answers={item["id"]: {"selected": [0], "is_correct": index != 1}
+                            for index, item in enumerate(questions)})
+        store.save(db, old)
+    headers = {"X-Study-Session": owner}
+    resume = client.post("/api/quizzes", headers=headers, json=material).json()
+    assert resume["id"] == old["id"] and len(resume["questions"]) == 10
+    restart = client.post("/api/quizzes", headers=headers, json=material | {"previous_id": old["id"]}).json()
+    result = client.get("/api/quizzes/" + restart["id"], headers=headers).json()
+    assert result["status"] == "ready" and len(result["questions"]) == 2

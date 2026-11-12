@@ -1,16 +1,19 @@
 import logging
 from dataclasses import dataclass
+from hashlib import sha256
 from typing import Annotated
 from uuid import uuid4
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 from pydantic import UUID4
 
 from . import quiz_store as store
-from .accounts import Profile, User
+from .accounts import Profile, User, account_profile, learning_profile
 from .model import GenerationError, model_client
-from .quiz_models import AnswerRequest, ChallengeRequest, QuizRequest, build_quiz, review_challenge
+from .quiz_models import (
+    MAIN_QUESTION_COUNT, AnswerRequest, ChallengeRequest, QuizRequest, analyze_drill, build_drill, build_quiz, review_challenge,
+)
 
 router = APIRouter(prefix="/api/quizzes")
 Client = Annotated[httpx.AsyncClient, Depends(model_client, scope="request")]
@@ -43,21 +46,15 @@ def practice_scope(quiz):
     if not topics:
         return None
     stats = (quiz["report"] or {}).get("topics", [])
-    weak = [item for item in stats if item["correct"] < item["total"]]
-    minimum = dict.fromkeys(topics, 1)
-    remaining = 15 - len(topics)
-    for item in sorted(weak, key=lambda entry: entry["correct"] / entry["total"]):
-        additional = min(item["total"], remaining)
-        minimum[item["topic"]] += additional
-        remaining -= additional
-    return {"required_topics": topics, "weak_topics": [item["topic"] for item in weak],
-            "minimum_counts": minimum}
+    accuracy = {item["topic"]: item["correct"] / item["total"] for item in stats if item["total"]}
+    selected = sorted(topics, key=lambda topic: accuracy.get(topic, 1))[:MAIN_QUESTION_COUNT]
+    return {"required_topics": selected, "weak_topics": [topic for topic in selected if accuracy.get(topic, 1) < 1]}
 
 
 async def generate_job(owner, quiz_id, request, client, previous, excluded, profile):
     try:
-        draft = await build_quiz(request, client, previous=previous, excluded=excluded, profile=profile)
-        update = {"status": "ready", "topics": draft.topics, "questions": [
+        draft = await build_quiz(request, client, previous=previous, profile=profile, excluded=excluded)
+        update = {"status": "ready", "message": "", "topics": draft.topics, "questions": [
             {"id": str(uuid4()), **question.model_dump()} for question in draft.questions
         ]}
     except GenerationError as error:
@@ -67,7 +64,12 @@ async def generate_job(owner, quiz_id, request, client, previous, excluded, prof
         update = {"status": "failed", "message": "出题服务暂时无法完成请求，请重试。"}
     with store.database() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        quiz = store.owned(connection, owner, quiz_id)
+        try:
+            quiz = store.owned(connection, owner, quiz_id)
+        except HTTPException as error:
+            if error.status_code == 404:
+                return
+            raise
         quiz.update(update)
         store.save(connection, quiz)
 
@@ -81,12 +83,12 @@ def start_quiz(request: QuizRequest, owner: Owner, jobs: BackgroundTasks, client
                     or (old["status"] != "failed" and not old["report"])):
             return store.public(old, connection)
         if old and not request.history:
-            request = QuizRequest.model_validate(request.model_dump(mode="json") | {"history": old["context"]["history"]})
+            request = QuizRequest.model_validate(request.model_dump(mode="json") | {"history": old["context"].get("history", [])})
         quiz = store.insert(connection, owner.key, str(request.version_id), request.model_dump(mode="json"),
                             account_id=owner.account_id, learning_session=owner.learning_session)
+        previous = practice_scope(old) if old else None
+        excluded = store.seen_stems(old) if old else []
         response = store.public(quiz, connection)
-    previous = practice_scope(old) if old else None
-    excluded = [question["stem"] for question in old["questions"] + old["retired"]] if old else []
     jobs.add_task(generate_job, owner.key, quiz["id"], request, client, previous, excluded, profile)
     return response
 
@@ -110,93 +112,281 @@ def answer_question(quiz_id: UUID4, question_id: UUID4, request: AnswerRequest, 
     with store.database() as connection:
         connection.execute("BEGIN IMMEDIATE")
         quiz = store.owned(connection, owner.key, str(quiz_id))
-        question = store.find_question(quiz, question_id)
-        if quiz["reviews"].get(question_id, {}).get("status") in store.PAUSED:
-            raise HTTPException(409, "此题正在核查或更换，可先作答其他题目。")
+        question = accessible_question(quiz, question_id)
+        require_review_finished(quiz, question_id)
         if question_id not in quiz["answers"]:
-            selected = set(request.selected)
-            if (len(selected) != len(request.selected) or max(selected) >= len(question["options"])
-                    or (question["kind"] == "single" and len(selected) != 1)):
-                raise HTTPException(422, "请选择有效选项。")
-            quiz["answers"][question_id] = {
-                "selected": sorted(selected), "is_correct": selected == set(question["correct"]),
-            }
+            answer = grade(question, request)
+            quiz["answers"][question_id] = answer
+            if not answer["is_correct"]:
+                quiz["drills"][question_id] = new_drill(required=True)
             store.save(connection, quiz)
         return store.public(quiz, connection)
 
 
-async def challenge_job(owner, quiz_id, question, quiz, objection, confirmed_invalid, client):
+def accessible_question(quiz, question_id):
+    question = store.find_question(quiz, question_id)
+    blocked = store.blocked_question(quiz)
+    order = [item["id"] for item in quiz["questions"]]
+    if blocked and order.index(question_id) > order.index(blocked):
+        raise HTTPException(409, "请先完成当前题的三题巩固。")
+    return question
+
+
+def require_review_finished(container, question_id):
+    if container["reviews"].get(question_id, {}).get("status") in store.PAUSED:
+        raise HTTPException(409, "此题正在核查或更换，可先作答其他可用题目。")
+
+
+def grade(question, request):
+    if request.unsure:
+        return {"selected": [], "is_correct": False, "unsure": True}
+    selected = set(request.selected)
+    if (len(selected) != len(request.selected) or max(selected) >= len(question["options"])
+            or (question["kind"] == "single" and len(selected) != 1)):
+        raise HTTPException(422, "请选择有效选项。")
+    return {"selected": sorted(selected), "is_correct": selected == set(question["correct"])}
+
+
+def new_drill(*, required=False):
+    return {"required": required, "status": "awaiting_explanation", "round": 1, "message": "",
+            "questions": [], "answers": {}, "reviews": {}, "history": [], "retired": [], "analysis": None}
+
+
+def settle_drill(drill):
+    if len(drill["answers"]) != 3 or any(
+        review["status"] in store.PAUSED for review in drill["reviews"].values()
+    ):
+        return False
+    if all(answer["is_correct"] for answer in drill["answers"].values()):
+        drill["status"] = "passed"
+        return False
+    drill["history"].append([{"question": question, "answer": drill["answers"][question["id"]]}
+                             for question in drill["questions"]])
+    drill.update(status="generating", round=drill["round"] + 1, questions=[], answers={}, reviews={}, analysis=None)
+    return True
+
+
+async def drill_job(owner, quiz_id, question_id, round_number, client):
+    def current_drill(quiz):
+        drill = quiz["drills"].get(question_id)
+        if drill and drill["status"] == "generating" and drill["round"] == round_number:
+            return drill
+        return None
+
+    with store.database() as connection:
+        quiz = store.owned(connection, owner, quiz_id)
+        drill = current_drill(quiz)
+        if drill is None:
+            return
+        profile = account_profile(connection, quiz["account_id"])
+    original = store.find_question(quiz, question_id)
+    profile_key = None
+    if profile is not None:
+        profile_key = sha256((profile["education_stage"] + "\0" + profile["goal"]).encode()).hexdigest()
+    try:
+        analysis = drill["analysis"]
+        if analysis is None or drill.get("analysis_profile_key") != profile_key:
+            previous = drill["history"][-1] if drill["history"] else []
+            result = await analyze_drill(original, quiz["answers"][question_id], previous, client, profile=profile)
+            analysis = result.model_dump()
+            with store.database() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                fresh = store.owned(connection, owner, quiz_id)
+                active = current_drill(fresh)
+                if active is None:
+                    return
+                active["analysis"] = analysis
+                active["analysis_profile_key"] = profile_key
+                store.save(connection, fresh)
+        draft = await build_drill(original, analysis, client, excluded=store.seen_stems(quiz), profile=profile)
+        questions = [{"id": str(uuid4()), **question.model_dump()} for question in draft.questions]
+        update = {"status": "ready", "questions": questions}
+    except GenerationError as error:
+        update = {"status": "failed", "message": str(error)}
+    except Exception:
+        logger.exception("Drill generation failed")
+        update = {"status": "failed", "message": "暂时无法生成巩固题，请重试。"}
+    with store.database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        fresh = store.owned(connection, owner, quiz_id)
+        active = current_drill(fresh)
+        if active is None:
+            return
+        seen = {stem.casefold() for stem in store.seen_stems(fresh)}
+        if any(question["stem"].casefold() in seen for question in update.get("questions", [])):
+            update = {"status": "failed", "message": "生成的巩固题与已有题目重复，请重试。"}
+        active.update(update)
+        store.save(connection, fresh)
+
+
+@router.post("/{quiz_id}/questions/{question_id}/explanation", dependencies=[Depends(learning_profile)])
+@router.post("/{quiz_id}/questions/{question_id}/drill/start", dependencies=[Depends(learning_profile)])
+@router.post("/{quiz_id}/questions/{question_id}/drill/retry", dependencies=[Depends(learning_profile)])
+def prepare_drill(quiz_id: UUID4, question_id: UUID4, request: Request,
+                  owner: Owner, jobs: BackgroundTasks, client: Client):
+    quiz_id, question_id = str(quiz_id), str(question_id)
+    action = request.url.path.rsplit("/", 1)[-1]
+    with store.database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        quiz = store.owned(connection, owner.key, quiz_id)
+        accessible_question(quiz, question_id)
+        require_review_finished(quiz, question_id)
+        answer = quiz["answers"].get(question_id)
+        if answer is None:
+            raise HTTPException(409, "请先提交答案，再查看解析。")
+        drill = quiz["drills"].get(question_id)
+        if action == "explanation":
+            answer["explained"] = True
+            generate = drill is not None and drill["status"] == "awaiting_explanation"
+        else:
+            if not answer.get("explained"):
+                raise HTTPException(409, "请先查看解析。")
+            if drill is None and action == "start":
+                drill = quiz["drills"][question_id] = new_drill()
+            generate = drill is not None and drill["status"] == (
+                "failed" if action == "retry" else "awaiting_explanation"
+            )
+        if generate:
+            drill.update(status="generating", message="")
+            jobs.add_task(drill_job, owner.key, quiz_id, question_id, drill["round"], client)
+        store.save(connection, quiz)
+        return store.public(quiz, connection)
+
+
+def drill_target(quiz, parent_id, question_id):
+    drill = quiz["drills"].get(parent_id)
+    if drill and drill["status"] == "ready":
+        for question in drill["questions"]:
+            if question["id"] == question_id:
+                return drill, question
+    raise HTTPException(409, "这道巩固题已结束或更新，请继续当前轮。")
+
+
+@router.post("/{quiz_id}/questions/{parent_id}/drill/questions/{question_id}/answer",
+             dependencies=[Depends(learning_profile)])
+def answer_drill(quiz_id: UUID4, parent_id: UUID4, question_id: UUID4, request: AnswerRequest,
+                 owner: Owner, jobs: BackgroundTasks, client: Client):
+    quiz_id, parent_id, question_id = str(quiz_id), str(parent_id), str(question_id)
+    with store.database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        quiz = store.owned(connection, owner.key, quiz_id)
+        accessible_question(quiz, parent_id)
+        require_review_finished(quiz, parent_id)
+        drill, question = drill_target(quiz, parent_id, question_id)
+        require_review_finished(drill, question_id)
+        if request.unsure:
+            raise HTTPException(422, "巩固题需要选择题目给出的选项。")
+        if question_id not in drill["answers"]:
+            drill["answers"][question_id] = grade(question, request)
+        if settle_drill(drill):
+            jobs.add_task(drill_job, owner.key, quiz_id, parent_id, drill["round"], client)
+        store.save(connection, quiz)
+        return store.public(quiz, connection)
+
+
+async def challenge_job(owner, quiz_id, question, quiz, objection, confirmed_invalid, client, parent_id=None):
     question_id = question["id"]
     replacement = None
+    initial = quiz if parent_id is None else quiz["drills"][parent_id]
     if not confirmed_invalid:
         try:
             finding = await review_challenge(question, objection, client)
             confirmed_invalid = finding.verdict == "invalid"
-            prefix = "题目可以继续作答。" if finding.verdict == "valid" else ""
-            basis = prefix + finding.user_perspective + "\n" + finding.objective
-            update = {"status": finding.verdict, "message": basis, "basis": basis, "confirmed_invalid": confirmed_invalid}
+            update = {
+                "status": finding.verdict, "basis": finding.user_perspective + "\n" + finding.objective,
+                "clarification_focus": finding.clarification_focus, "confirmed_invalid": confirmed_invalid,
+            }
         except GenerationError as error:
             update = {"status": "failed", "message": str(error)}
         except Exception:
             logger.exception("Question review failed")
             update = {"status": "failed", "message": "审核服务暂时无法完成请求，请重试。"}
     else:
-        update = {"status": "invalid", "message": quiz["reviews"][question_id]["basis"], "confirmed_invalid": True}
+        update = {"status": "invalid", "basis": initial["reviews"][question_id]["basis"], "confirmed_invalid": True}
     if confirmed_invalid:
         # Persist the finding before requesting a replacement so a restart cannot re-enable this question.
         with store.database() as connection:
             connection.execute("BEGIN IMMEDIATE")
             fresh = store.owned(connection, owner, quiz_id)
-            fresh["reviews"][question_id].update(update | {"status": "pending"})
+            target = fresh if parent_id is None else fresh["drills"].get(parent_id)
+            if target is None or question_id not in target["reviews"]:
+                return
+            target["reviews"][question_id].update(update | {"status": "pending"})
             store.save(connection, fresh)
         try:
             context = QuizRequest.model_validate(quiz["context"])
-            excluded = [item["stem"] for item in quiz["questions"] + quiz["retired"]]
+            excluded = store.seen_stems(fresh)
             draft = await build_quiz(context, client, replacement=question, excluded=excluded)
             replacement = {"id": str(uuid4()), **draft.questions[0].model_dump()}
+            if parent_id is not None:
+                replacement["points"] = question["points"]
         except Exception:
             logger.exception("Replacement generation failed")
-            update.update(status="replacement_failed", message=update["message"] + "\n新题未能生成，请重试。")
+            update["status"] = "replacement_failed"
+    next_round = None
     with store.database() as connection:
         connection.execute("BEGIN IMMEDIATE")
         fresh = store.owned(connection, owner, quiz_id)
+        target = fresh if parent_id is None else fresh["drills"].get(parent_id)
+        if target is None or question_id not in target["reviews"]:
+            return
         if replacement:
-            index = next(i for i, item in enumerate(fresh["questions"]) if item["id"] == question_id)
-            if any(item["stem"].casefold() == replacement["stem"].casefold() for item in fresh["questions"] + fresh["retired"]):
-                fresh["reviews"][question_id].update(update | {"status": "replacement_failed",
-                    "message": update["message"] + "\n新题与另一题重复，请重试。"})
+            index = next(i for i, item in enumerate(target["questions"]) if item["id"] == question_id)
+            if replacement["stem"].casefold() in {stem.casefold() for stem in store.seen_stems(fresh)}:
+                target["reviews"][question_id].update(update | {"status": "replacement_failed"})
             else:
-                fresh["questions"][index] = replacement
-                fresh["answers"].pop(question_id, None)
-                fresh["reviews"].pop(question_id)
-                fresh["retired"].append(question | {"review": update, "objection": objection})
-                fresh["reviews"][replacement["id"]] = {"status": "replaced", "message": "已更换此题。\n" + update["message"]}
+                target["questions"][index] = replacement
+                target["answers"].pop(question_id, None)
+                target["reviews"].pop(question_id)
+                target["retired"].append(question | {"review": update, "objection": objection})
+                target["reviews"][replacement["id"]] = {"status": "replaced"}
+                if parent_id is None:
+                    retired_drill = fresh["drills"].pop(question_id, None)
+                    if retired_drill:
+                        fresh["retired"].extend({"stem": item["stem"]} for item in store.drill_questions(retired_drill))
         else:
-            fresh["reviews"][question_id].update(update)
+            target["reviews"][question_id].update(update)
+        if parent_id is not None and settle_drill(target):
+            next_round = target["round"]
         store.save(connection, fresh)
+    if next_round is not None:
+        await drill_job(owner, quiz_id, parent_id, next_round, client)
 
 
 @router.post("/{quiz_id}/questions/{question_id}/challenge", status_code=202)
 def challenge(quiz_id: UUID4, question_id: UUID4, request: ChallengeRequest,
               owner: Owner, jobs: BackgroundTasks, client: Client):
-    owner, quiz_id, question_id = owner.key, str(quiz_id), str(question_id)
+    return queue_challenge(str(quiz_id), str(question_id), request, owner, jobs, client)
+
+
+@router.post("/{quiz_id}/questions/{parent_id}/drill/questions/{question_id}/challenge", status_code=202,
+             dependencies=[Depends(learning_profile)])
+def challenge_drill(quiz_id: UUID4, parent_id: UUID4, question_id: UUID4, request: ChallengeRequest,
+                    owner: Owner, jobs: BackgroundTasks, client: Client):
+    return queue_challenge(str(quiz_id), str(question_id), request, owner, jobs, client, str(parent_id))
+
+
+def queue_challenge(quiz_id, question_id, request, owner, jobs, client, parent_id=None):
     with store.database() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        quiz = store.owned(connection, owner, quiz_id)
-        question = store.find_question(quiz, question_id)
-        previous = quiz["reviews"].get(question_id, {})
+        quiz = store.owned(connection, owner.key, quiz_id)
+        question = accessible_question(quiz, parent_id or question_id)
+        target = quiz
+        if parent_id is not None:
+            require_review_finished(quiz, parent_id)
+            target, question = drill_target(quiz, parent_id, question_id)
+        previous = target["reviews"].get(question_id, {})
         if previous.get("status") == "pending" or (
             previous.get("status") == "valid" and previous.get("objection") == request.objection
         ):
             return store.public(quiz, connection)
         confirmed_invalid = previous.get("confirmed_invalid", False)
-        quiz["reviews"][question_id] = {
+        target["reviews"][question_id] = {
             "status": "pending", "objection": request.objection,
-            "message": previous.get("message", "") if confirmed_invalid else "",
             "confirmed_invalid": confirmed_invalid,
             "basis": previous.get("basis", ""),
         }
         store.save(connection, quiz)
         response = store.public(quiz, connection)
-    jobs.add_task(challenge_job, owner, quiz_id, question, quiz, request.objection, confirmed_invalid, client)
+    jobs.add_task(challenge_job, owner.key, quiz_id, question, quiz, request.objection, confirmed_invalid, client, parent_id)
     return response

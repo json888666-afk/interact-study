@@ -6,12 +6,22 @@ export type Question = {
   topic: string
   stem: string
   options: string[]
-  answer?: { selected: number[]; correct: number[]; is_correct: boolean; explanation: string }
+  answer?: { selected: number[]; is_correct?: boolean; unsure?: boolean; correct?: number[]; explanation?: string }
   review?: {
     status: 'pending' | 'valid' | 'uncertain' | 'failed' | 'replacement_failed' | 'replaced'
     message: string
     objection?: string
   }
+  drill?: Drill
+}
+
+export type Drill = {
+  required: boolean
+  status: 'awaiting_explanation' | 'generating' | 'ready' | 'failed' | 'passed'
+  round: number
+  message: string
+  questions: Question[]
+  feedback: { id: string; stem: string; options: string[]; correct: number[]; selected: number[]; explanation: string }[]
 }
 
 export type Quiz = {
@@ -20,6 +30,7 @@ export type Quiz = {
   status: 'generating' | 'ready' | 'failed'
   message: string
   questions: Question[]
+  blocked_question_id?: string | null
   ranking: { enabled: boolean; session_point: 0 | 1 }
   report: {
     total: number
