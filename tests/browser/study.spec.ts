@@ -28,6 +28,7 @@ async function mockLesson(page: Page, javascript: string) {
 test('quadratic slider changes the preview and can reset', async ({ page }) => {
   await openFixtureLesson(page, 'quadratic')
   await expect(page.getByText('实时生成', { exact: true })).toBeVisible()
+  await expect(page.getByText('通用模式 · 登录后可按年级/目标定制')).toBeVisible()
   const frame = page.frameLocator('iframe')
   await expect(frame.getByText('开口向上。', { exact: false })).toBeVisible()
   await frame.getByRole('slider', { name: '参数 a' }).fill('-1')

@@ -27,11 +27,14 @@ test('registration, account switching, guest recovery and leaderboard', async ({
   const bob = 'Bob_' + randomUUID().slice(0, 8)
   await openFixtureLesson(page, 'quadratic')
   await expect(page.getByRole('heading', { name: '二次函数参数', exact: true })).toBeVisible()
+  await expect(page.getByText('通用模式 · 登录后可按年级/目标定制')).toBeVisible()
   await authenticate(page, '注册', alice)
   await expect(page.getByText('你还没有开始提问，快来探索知识吧！')).toBeVisible()
+  await expect(page.getByText('当前学习设置：高中 · 用图像理解二次函数')).toBeVisible()
   await expect(page.getByRole('button', { name: /继续上次学习/ })).toHaveCount(0)
   await openFixtureLesson(page, 'recursion')
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
+  await expect(page.getByText('按 高中 · 用图像理解二次函数 生成')).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
   await page.getByRole('button', { name: '退出' }).click()
@@ -84,7 +87,7 @@ test('guest leaderboard invitation supports browsing, registration and ordinary 
   await expect(page.getByLabel('学习阶段')).toHaveValue('初中')
   await page.getByLabel('学习阶段').selectOption('本科')
   await page.getByLabel('近期学习目标').fill('理解函数的变化率')
-  await page.getByRole('button', { name: '保存学习资料' }).click()
+  await page.getByRole('button', { name: '保存个人设置' }).click()
   await expect(page).toHaveURL(/\/$/)
   await page.getByRole('link', { name: '学习设置' }).click()
   await expect(page.getByLabel('学习阶段')).toHaveValue('本科')
@@ -100,7 +103,7 @@ test('guest leaderboard invitation supports browsing, registration and ordinary 
   await expect(page.getByRole('heading', { name: '排行榜' })).toBeVisible()
 })
 
-test('legacy account completes settings and returns to the home page', async ({ page }) => {
+test('legacy account completes settings and returns to the previous page', async ({ page }) => {
   const user = { id: 'old-account', username: 'OldAccount', profile: null }
   let profile: unknown = null
   await page.route('**/api/auth/me', (route) => route.fulfill({ json: { user: { ...user, profile } } }))
@@ -112,9 +115,21 @@ test('legacy account completes settings and returns to the home page', async ({ 
   await expect(page.getByRole('heading', { name: '完善学习资料' })).toBeVisible()
   await page.getByLabel('学习阶段').selectOption('硕士')
   await page.getByLabel('近期学习目标').fill('理解梯度在优化中的作用')
-  await page.getByRole('button', { name: '保存学习资料' }).click()
-  await expect(page.getByRole('heading', { name: '把问题动起来。' })).toBeVisible()
+  await page.getByRole('button', { name: '保存个人设置' }).click()
+  await expect(page.getByRole('heading', { name: '排行榜', exact: true })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('saving settings from a lesson returns to the lesson', async ({ page }) => {
+  const name = 'Study_' + randomUUID().slice(0, 8)
+  await page.goto('/')
+  await authenticate(page, '注册', name)
+  await openFixtureLesson(page, 'recursion')
+  await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: '学习设置' }).click()
+  await expect(page.getByRole('heading', { name: '学习设置' })).toBeVisible()
+  await page.getByRole('button', { name: '保存个人设置' }).click()
+  await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
 })
 
 test('goal review waits at 99 percent and keeps the form on rejection', async ({ page }) => {
@@ -139,26 +154,39 @@ test('goal review waits at 99 percent and keeps the form on rejection', async ({
   await expect(page.getByLabel('近期学习目标')).toHaveValue('准备参加考试')
 })
 
-test('imports a paper, resubmits a pending question and returns to learn a tagged topic', async ({ page }) => {
+test('imports a paper, confirms drafts and returns to learn a tagged topic', async ({ page }) => {
   const user = { id: 'library-user', username: 'LibraryUser', profile: { education_stage: '初中', goal: '学习数学' } }
-  const first = { id: 1, number: '1', stem: '抛物线何时开口向上？', tags: ['二次函数'],
-    options: ['系数为正', '系数为负', '系数为零'], status: 'ready', file: 'paper.docx', page: 1 }
-  const pending = { ...first, id: 2, number: '2', stem: '', tags: [], options: [], status: 'pending', reason: '公式有分歧。' }
+  const draft = { status: 'draft', confirmed: false, file: 'paper.docx', page: 1,
+    reason: '识别结果待确认，请核对题干、选项后点击确认。' }
+  const first = { id: 1, number: '1',
+    stem: '已知 $xOy$ 中，$P(3,-5)$ 关于 $y$ 轴对称。\n\n| x | 1 | 2 |\n|---|---|---|\n| y | 3 | 4 |',
+    tags: ['二次函数'], options: ['系数为正', '系数为负', '系数为零'], correct: [0], ...draft }
+  const second = { id: 2, number: '2', stem: '写出对称轴。', tags: [],
+    options: ['x=1', 'x=-1', 'x=0'], correct: [0], ...draft }
   const paper = { id: 'paper', exam: '成都中考', subject: '数学', year: null, paper: null, filenames: ['paper.docx'],
-    question_count: 2, ready_count: 1, review_count: 0, pending_count: 1, questions: [first, pending] }
+    question_count: 2, draft_count: 2, confirmed_count: 0, ready_count: 0, review_count: 0, questions: [first, second] }
   await page.route('**/api/auth/me', (route) => route.fulfill({ json: { user } }))
   await page.route('**/api/exam-library', (route) => route.fulfill({ json: { papers: [] } }))
-  await page.route('**/api/exam-library/paper/questions/2/retry', (route) => {
-    expect(route.request().postDataJSON().files[0].filename).toBe('clear.png')
-    return route.fulfill({ json: { paper: { ...paper, pending_count: 0, review_count: 1,
-      questions: [first, { ...pending, stem: '写出对称轴。', status: 'review_only' }] } } })
-  })
   await page.route('**/api/exam-library/imports', (route) => {
     const submitted = route.request().postDataJSON()
     expect(submitted.exam).toBe('成都中考')
     expect(submitted.consent).toBe(true)
     expect(submitted.files[0]).toEqual({ filename: 'paper.docx', data: Buffer.from('sample').toString('base64') })
     return route.fulfill({ status: 201, json: { duplicate: false, paper } })
+  })
+  await page.route('**/api/exam-library/paper/questions/1/confirm', (route) => route.fulfill({ json: { paper: {
+    ...paper, draft_count: 1, confirmed_count: 1, ready_count: 1,
+    questions: [{ ...first, confirmed: true, status: 'ready', reason: '' }, second] } } }))
+  await page.route('**/api/exam-library/paper/questions/2/confirm', (route) => route.fulfill({ json: { paper: {
+    ...paper, draft_count: 0, confirmed_count: 2, ready_count: 2,
+    questions: [{ ...first, confirmed: true, status: 'ready', reason: '' },
+      { ...second, confirmed: true, status: 'ready', reason: '' }] } } }))
+  await page.route('**/api/exam-library/paper/questions/1/tags', (route) => {
+    const submitted = route.request().postDataJSON()
+    expect(submitted.tags).toEqual(['二次函数', '判别式'])
+    return route.fulfill({ json: { paper: { ...paper, questions: [
+      { ...first, confirmed: true, status: 'ready', reason: '', tags: submitted.tags },
+      { ...second, confirmed: true, status: 'ready', reason: '' }] } } })
   })
   await page.goto('/')
   await page.getByRole('link', { name: '我的试卷' }).click()
@@ -169,14 +197,22 @@ test('imports a paper, resubmits a pending question and returns to learn a tagge
   })
   await page.getByRole('checkbox', { name: /同意/ }).check()
   await page.getByRole('button', { name: '导入试卷' }).click()
-  await expect(page.getByText('已导入 2 道题，其中 1 道可用于自动判分。')).toBeVisible()
+  await expect(page.getByText('已识别 2 道题，请逐题核对后点击「确认入库」。')).toBeVisible()
+  await expect(page.getByRole('table')).toBeVisible()
+  await expect(page.locator('.katex').first()).toBeVisible()
+  await expect(page.getByText('|---|')).toHaveCount(0)
   await expect(page.getByText('系数为正')).toBeVisible()
-  await page.getByRole('button', { name: '重新提交这道题' }).click()
-  await page.getByLabel('这道题的清晰照片').setInputFiles({ name: 'clear.png', mimeType: 'image/png', buffer: Buffer.from('clear') })
-  await page.getByRole('group', { name: '重新提交这道题' }).getByRole('checkbox', { name: /同意/ }).check()
-  await page.getByRole('button', { name: '提交核对' }).click()
-  await expect(page.getByText('写出对称轴。')).toBeVisible()
-  await expect(page.getByRole('button', { name: '重新提交这道题' })).toHaveCount(0)
+  await expect(page.getByText('未确认').first()).toBeVisible()
+  await page.getByRole('button', { name: '确认入库' }).first().click()
+  await expect(page.getByText('已确认入库。')).toBeVisible()
+  await page.getByRole('button', { name: '确认入库' }).click()
+  await expect(page.getByText('已确认入库。')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: '确认入库' })).toHaveCount(0)
+  await page.getByRole('button', { name: '编辑知识点' }).first().click()
+  await page.getByLabel('添加知识点').fill('判别式')
+  await page.getByRole('button', { name: '保存' }).click()
+  await expect(page.getByText('知识点已更新。')).toBeVisible()
+  await expect(page.getByRole('link', { name: '学习判别式' })).toBeVisible()
   await page.getByRole('link', { name: '学习二次函数' }).click()
   await expect(page.getByLabel('你想弄懂什么？')).toHaveValue('请讲解二次函数')
 })

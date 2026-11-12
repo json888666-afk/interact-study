@@ -18,13 +18,19 @@ export function authRequest(action: 'me' | 'register' | 'login' | 'logout' | 'pr
   })
 }
 
-export function finishAuth(destination: '/' | '/leaderboard' = '/') {
+export function finishAuth(destination: string = '/') {
   try {
     localStorage.setItem(AUTH_CHANGE_KEY, crypto.randomUUID())
   } catch {
     // The cookie remains the source of truth when browser storage is unavailable.
   }
   window.location.replace(destination)
+}
+
+function safeReturnPath(value: string): string {
+  const [path] = value.split('?')
+  if (path === '/' || path === '/study' || path === '/leaderboard' || path === '/exam-library') return value
+  return '/'
 }
 
 function readProfile(values: FormData): Profile {
@@ -54,7 +60,7 @@ function ProfileFields({ profile, disabled }: { profile?: Profile | null; disabl
     <textarea id="learning-goal" name="goal" rows={3} maxLength={300} disabled={disabled} required
       defaultValue={profile?.goal ?? ''} placeholder="例如，本周学会用图像判断二次函数的开口和顶点。"
       aria-describedby="learning-goal-help" />
-    <p className="subject" id="learning-goal-help">用于调整讲解和练习难度，之后可在学习设置修改。</p>
+    <p className="subject" id="learning-goal-help">用于调整讲解和练习难度；只有写明具体考试时才会检索该考试真题，之后可在学习设置修改。</p>
   </>
 }
 
@@ -115,6 +121,9 @@ export function LearningSettings({ user }: { user: User }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const needsSetup = !user.profile || user.needs_goal_review
+  const params = new URLSearchParams(window.location.search)
+  const current = window.location.pathname + window.location.search
+  const returnTo = safeReturnPath(params.get('from') ?? (window.location.pathname === '/profile' ? '/' : current))
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -125,7 +134,7 @@ export function LearningSettings({ user }: { user: User }) {
       const profile = readProfile(new FormData(event.currentTarget))
       const result = await authRequest('profile', profile)
       if (!result.user) throw new Error('请重新登录后保存学习设置。')
-      finishAuth()
+      finishAuth(returnTo)
     } catch (error) {
       setError(error instanceof Error ? error.message : '保存失败，请重试。')
       setBusy(false)
@@ -140,7 +149,7 @@ export function LearningSettings({ user }: { user: User }) {
         {needsSetup && <p>学习目标通过审核后，即可开始个性化学习。</p>}
         <ProfileFields profile={user.profile} disabled={busy} />
         {error && <p role="alert">{error}</p>}
-        <button className="primary-button" type="submit" disabled={busy}>{busy ? '正在保存…' : '保存学习资料'}</button>
+        <button className="primary-button" type="submit" disabled={busy}>{busy ? '正在保存…' : '保存个人设置'}</button>
       </form>
     </main>
   )

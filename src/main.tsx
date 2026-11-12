@@ -133,7 +133,7 @@ function App({ user }: { user: User | null }) {
             {user ? <>
               <span className="account-name">{user.username}</span>
               <a href="/exam-library">我的试卷</a>
-              <a href="/profile">学习设置</a>
+              <a href={'/profile?from=' + encodeURIComponent(path + window.location.search)}>学习设置</a>
               <button type="button" className="quiet-button" disabled={loggingOut} onClick={() => void logout()}>退出</button>
             </> : <>
               <a href={authLink('login', path === '/leaderboard')}>登录</a>
@@ -154,6 +154,9 @@ function App({ user }: { user: User | null }) {
           <div className="study-header">
             <p className="source">{(version?.source ?? (state.kind === 'response' ? state.data.source : request.source)) === 'example'
               ? '预置案例' : '实时生成'}</p>
+            <p className="profile-badge">{user?.profile
+              ? `按 ${user.profile.education_stage} · ${user.profile.goal} 生成`
+              : '通用模式 · 登录后可按年级/目标定制'}</p>
             <h1 ref={studyHeading} tabIndex={-1}>{version?.lesson.title ?? request.question}</h1>
             {version && <p>{version.lesson.summary}</p>}
           </div>
@@ -175,6 +178,10 @@ function App({ user }: { user: User | null }) {
             <p>{user && !session ? '你还没有开始提问，快来探索知识吧！'
               : '输入一个数学或计算机问题，生成可以亲手操作的交互演示。'}</p>
           </section>
+          {user?.profile
+            ? <p className="profile-hint">当前学习设置：{user.profile.education_stage} · {user.profile.goal}
+                <a href={'/profile?from=' + encodeURIComponent(path)}>修改</a></p>
+            : <p className="profile-hint">登录并设置学习阶段与目标后，可获得更贴合的内容。</p>}
           <form className="question-card" onSubmit={submit}>
             <label htmlFor="question">你想弄懂什么？</label>
             <textarea id="question" value={question} onChange={(event) => setQuestion(event.target.value)}
