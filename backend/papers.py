@@ -12,9 +12,11 @@ from pydantic import Field, TypeAdapter, UUID4, ValidationError
 
 from . import paper_store as store
 from .accounts import User
-from .exams import ExamSource, ExamUnavailable, ImageOption, exam_settings, normalized, select_questions
+from .exams import (ExamSource, ExamUnavailable, ImageOption, exam_settings, normalized, select_open_questions,
+                    select_questions)
 from .model import GenerationError, model_client, request_json
 from .paper_files import MAX_BYTES, MAX_PAGES, read_files
+from .quiz_models import convert_to_choice
 from .quiz_store import database
 from .schemas import StrictModel, bounded_text
 
@@ -60,8 +62,8 @@ class ExtractedAnswer(QuestionLocation):
 
 
 class PaperReading(StrictModel):
-    questions: list[ExtractedQuestion] = Field(max_length=MAX_QUESTIONS)
-    answers: list[ExtractedAnswer] = Field(max_length=MAX_QUESTIONS)
+    questions: list[ExtractedQuestion] = Field(default_factory=list, max_length=MAX_QUESTIONS)
+    answers: list[ExtractedAnswer] = Field(default_factory=list, max_length=MAX_QUESTIONS)
     located: list[QuestionLocation] = Field(default_factory=list, max_length=MAX_QUESTIONS)
     columns: Annotated[int, Field(strict=True, ge=1, le=2)] | None = None
 
@@ -69,6 +71,16 @@ class PaperReading(StrictModel):
 class QuestionRetry(StrictModel):
     consent: bool = Field(strict=True)
     files: list[UploadFile] = Field(min_length=1, max_length=2)
+
+
+class QuestionEdit(StrictModel):
+    stem: Annotated[str, bounded_text(1000)]
+    options: list[Annotated[str, bounded_text(300)]] = Field(default_factory=list, max_length=6)
+    correct: list[Annotated[int, Field(strict=True, ge=0, le=5)]] = Field(default_factory=list, max_length=6)
+
+
+class QuestionTags(StrictModel):
+    tags: list[Annotated[str, bounded_text(60)]] = Field(min_length=1, max_length=8)
 
 
 READING = TypeAdapter(PaperReading)
@@ -82,11 +94,7 @@ page 使用输入的页标识；number 仅写题号。同页存在分卷或不�
 只输出 JSON {"questions":[{"page":1,"number":"1","stem":"原文","options":[{"label":"A","text":"原文"}],
 "tags":["考点"],"needs_figure":false}],"answers":[{"page":2,"number":"1","choices":["A"],"evidence":"1. A"}],
 "located":[{"page":1,"number":"1","section":null}],"columns":null}。"""
-IMPORT_VERIFY_PROMPT = IMPORT_PROMPT + "\n独立逐页转录。特别核对公式、选项标签和印刷答案的字母。"
-REGION_PROMPT = IMPORT_PROMPT + "\n输入是原始照片中一个放大的重叠区域。逐题读取本区域，完整题与仅有题号的裁边片段必须区分；全图定位提示仅供参考，不限定题号。"
-REGION_VERIFY_PROMPT = REGION_PROMPT + "\n独立重新核对本区域的完整题和印刷答案。"
 RETRY_PROMPT = IMPORT_PROMPT + "\n只识别指定的原卷题号。若第一张清晰照片只有这一题且裁去了题号，可以使用指定题号；仍要逐字转录正文与选项。后续页面是可选参考答案。"
-RETRY_VERIFY_PROMPT = RETRY_PROMPT + "\n独立核对指定题的正文、选项和印刷答案。"
 PRINTED_ANSWER = re.compile(r"^(?:参考答案|正确答案|答案|Answer|Solution)[.．:：]?\s*([A-F](?:[\s,，、]+[A-F])*)[.．。]?$", re.I)
 NUMBERED_KEY = re.compile(r"^(?:第\s*)?(\d{1,3})\s*[.．、):：题]\s*([A-F](?:[\s,，、]+[A-F])*)[.．。]?$", re.I)
 FIGURE = re.compile(r"图中|如图|如下图|见图|如下表|如表|如右图|(?:figure|diagram|graph)\s+(?:below|above)|公式原格式不可核验|插图格式无法读取", re.I)
@@ -122,82 +130,6 @@ def read_upload(payload, *, metadata=None):
         files.append((filename, data))
         fingerprint.update(sha256(data).digest())
     return files, fingerprint.hexdigest()
-
-
-def question_signature(question):
-    return (normalized(question.stem), tuple((item.label, normalized(item.text)) for item in question.options),
-            question.needs_figure)
-
-
-def answer_signature(answer):
-    return (tuple(sorted(answer.choices)), normalized(answer.evidence))
-
-
-def item_key(item):
-    section, number = store.question_identity(item.section, item.number)
-    return item.page, section, number
-
-
-async def reading_pair(client, settings, parts, semaphore, first_prompt, second_prompt, *, partial=False):
-    async def read(prompt):
-        return await request_json(parts, settings, client, prompt, READING)
-
-    async with semaphore:
-        if not partial or not second_prompt:
-            return await read(first_prompt), await read(second_prompt) if second_prompt else None
-        first, second = await asyncio.gather(read(first_prompt), read(second_prompt), return_exceptions=True)
-    for result in (first, second):
-        if isinstance(result, BaseException) and not isinstance(result, GenerationError):
-            raise result
-    if isinstance(first, GenerationError) and isinstance(second, GenerationError):
-        raise first
-    first = PaperReading(questions=[], answers=[]) if isinstance(first, GenerationError) else first
-    second = PaperReading(questions=[], answers=[]) if isinstance(second, GenerationError) else second
-    return first, second
-
-
-async def read_region(client, settings, index, region, locations, semaphore):
-    box, image = region
-    parts = [
-        {"type": "text", "text": f"页标识 {index}。区域坐标（千分比）{box}。"
-                                f"整页候选题号：{', '.join(item.number for item in locations)}"},
-        {"type": "image_url", "image_url": {"url": image}},
-    ]
-    return await reading_pair(client, settings, parts, semaphore, REGION_PROMPT, REGION_VERIFY_PROMPT, partial=True)
-
-
-async def read_batch(client, settings, pages, indexes, semaphore):
-    parts = []
-    for index in indexes:
-        page = pages[index - 1]
-        parts.append({"type": "text", "text": f"页标识 {index}\n{page.text}"})
-        parts.extend({"type": "image_url", "image_url": {"url": image}} for image in page.images)
-    try:
-        first, second = await reading_pair(client, settings, parts, semaphore, IMPORT_PROMPT,
-                                           IMPORT_VERIFY_PROMPT if any(pages[i - 1].images for i in indexes) else None,
-                                           partial=any(pages[i - 1].regions for i in indexes))
-    except GenerationError:
-        if not all(pages[i - 1].regions for i in indexes):
-            raise
-        # A dense page may exceed the overview's response limit. Its crops can still be read.
-        first, second = PaperReading(questions=[], answers=[]), PaperReading(questions=[], answers=[])
-    output = [(indexes, first, second)]
-    for index in indexes:
-        locations = [item for item in [*first.located, *(second.located if second else [])] if item.page == index]
-        regions = pages[index - 1].regions
-        if regions and len(indexes) == 1 and second and first.columns == second.columns == 1:
-            regions = tuple(region for region in regions if region[0][0] == 0 and region[0][2] == 1000)
-        results = await asyncio.gather(
-            *(read_region(client, settings, index, region, locations, semaphore) for region in regions),
-            return_exceptions=True,
-        )
-        for result in results:
-            if isinstance(result, (GenerationError, ExamUnavailable)):
-                continue
-            if isinstance(result, BaseException):
-                raise result
-            output.append(([index], *result))
-    return output
 
 
 def question_end(question, text):
@@ -248,130 +180,107 @@ def printed_key(answer, question, pages, end):
     return letters
 
 
-def reconcile(pages, readings):
-    locations, variants, answers, sections = {}, {}, {}, {}
-    sources = [(indexes, read, second is None) for indexes, first, second in readings
-               for read in (first, second) if read is not None]
-    for indexes, read, _ in sources:
-        for item in [*read.located, *read.questions]:
-            page, section, number = item_key(item)
-            if page in indexes and section:
-                sections.setdefault((page, number), set()).add(section)
-
-    def key(item):
-        page, section, number = item_key(item)
-        aliases = sections.get((page, number), set())
-        return (page, next(iter(aliases)) if not section and len(aliases) == 1 else section, number)
-
-    for indexes, read, native in sources:
-        seen_questions, seen_answers = set(), set()
-        for item in [*read.located, *read.questions]:
-            identity = key(item)
-            if item.page in indexes and not (not identity[1] and len(sections.get((item.page, identity[2]), ())) > 1):
-                locations.setdefault(identity, item)
+def draft_questions(pages, readings):
+    """把模型一次读取返回的题目映射为待确认草稿；由用户核对后再入库。"""
+    result = []
+    section_order = {}
+    for indexes, read in readings:
         for item in read.questions:
-            identity = key(item)
-            if item.page not in indexes or identity not in locations or not item.complete:
+            if item.page not in indexes or not item.complete or not item.stem.strip():
                 continue
             page = pages[item.page - 1]
-            if page.text and question_end(item, normalized(page.text)) is None:
-                continue
-            signature = question_signature(item)
-            if (identity, signature) not in seen_questions:
-                observed = variants.setdefault(identity, {})
-                previous = observed.get(signature, (item, 0))
-                observed[signature] = (previous[0], previous[1] + (2 if native or page.text else 1))
-                seen_questions.add((identity, signature))
-        for item in read.answers:
-            identity = (item_key(item), answer_signature(item))
-            if item.page in indexes and identity not in seen_answers:
-                previous = answers.get(identity, (item, 0))
-                answers[identity] = (previous[0], previous[1] + (2 if native or pages[item.page - 1].text else 1))
-                seen_answers.add(identity)
-
-    section_order = {}
-    for index, section, _ in locations:
-        ordered_sections = section_order.setdefault(index, {})
-        ordered_sections.setdefault(section, len(ordered_sections))
-
-    def order(identity):
-        index, section, number = identity
-        return index, section_order[index][section], store.number_order(number)
-
-    result = []
-    for identity in sorted(locations, key=order):
-        index, section, number = identity
-        page = pages[index - 1]
-        location = locations[identity]
-        candidates = variants.get(identity, {})
-        question, agreement = next(iter(candidates.values()), (None, 0))
-        reason = ""
-        if len(candidates) > 1:
-            reason = "不同识别结果的题干、公式或选项不一致。"
-        elif agreement < 2:
-            reason = "已定位题号，但正文尚未完整核对。"
-        elif question.needs_figure and not FIGURE.search(question.stem):
-            reason = "题目中的公式或附件暂未核对。"
-        base = {"number": number, "section": location.section or section or None, "file": page.file, "page": page.page,
-                "section_order": section_order[index][section]}
-        if reason:
-            result.append(base | {"stem": "", "options": [], "correct": [], "tags": [], "kind": "other",
-                                  "ready": False, "status": "pending", "reason": reason})
-            continue
-        options = [option.text for option in question.options]
-        labels = [option.label for option in question.options]
-        text = normalized(page.text)
-        end = question_end(question, text) if text else None
-        begin = text.find(normalized(question.stem))
-        damaged = begin >= 0 and bool(FIGURE.search(text[max(0, begin - 20):end]))
-        keys = {}
-        same_number = [candidate for candidate in locations if candidate[2] == number]
-        for ((answer_page, answer_section, answer_number), _), (item, agreement) in answers.items():
-            if answer_number != number or (answer_section and section != answer_section):
-                continue
-            inline = PRINTED_ANSWER.fullmatch(normalized(item.evidence))
-            if len(same_number) > 1 and (not answer_section or
-                    sum(candidate[1] == section for candidate in same_number) > 1):
-                if not inline or answer_page != index or sum(candidate[0] == index for candidate in same_number) > 1:
+            text = normalized(page.text)
+            begin = text.find(normalized(item.stem)) if text else -1
+            end = question_end(item, text) if text else None
+            damaged = begin >= 0 and bool(FIGURE.search(text[max(0, begin - 20):end]))
+            section, number = store.question_identity(item.section, item.number)
+            keys = set()
+            for answer in read.answers:
+                if not 1 <= answer.page <= len(pages):
                     continue
-            if letters := printed_key(item, question, pages, end):
-                answer = tuple(letters)
-                keys[answer] = max(keys.get(answer, 0), agreement)
-        choices = next(iter(keys)) if len(keys) == 1 and max(keys.values()) >= 2 else ()
-        correct = [labels.index(letter) for letter in choices] if set(choices) <= set(labels) else []
-        ready = bool(3 <= len(options) <= 6 and labels == list("ABCDEF"[:len(labels)]) and correct
-                     and len(set(options)) == len(options) and len(question.stem) <= 1000
-                     and printed_number(question, text, begin) and not damaged
-                     and not question.needs_figure and not FIGURE.search(question.stem))
-        kind = ("multiple" if len(correct) > 1 else "single") if options else "other"
-        result.append(base | {"stem": question.stem, "options": options, "correct": sorted(correct),
-                       "tags": list(dict.fromkeys(question.tags)), "kind": kind, "ready": ready,
-                       "status": "ready" if ready else "review_only",
-                       "reason": "" if ready else "缺少可核对的答案，或题型暂不支持自动判分。"})
+                answer_section, answer_number = store.question_identity(answer.section, answer.number)
+                if answer_number != number or (answer_section and answer_section != section):
+                    continue
+                if letters := printed_key(answer, item, pages, end):
+                    keys.add(tuple(letters))
+            choices = next(iter(keys)) if len(keys) == 1 else ()
+            labels = [option.label for option in item.options]
+            correct = [labels.index(letter) for letter in choices] if set(choices) <= set(labels) else []
+            ready = bool(3 <= len(item.options) <= 6 and labels == list("ABCDEF"[:len(labels)]) and correct
+                         and len(set(option.text for option in item.options)) == len(item.options)
+                         and len(item.stem) <= 1000
+                         and printed_number(item, text, begin) and not damaged
+                         and not item.needs_figure and not FIGURE.search(item.stem))
+            kind = ("multiple" if len(correct) > 1 else "single") if item.options else "other"
+            order_key = (item.page, section)
+            if order_key not in section_order:
+                section_order[order_key] = len(section_order)
+            result.append({
+                "number": number, "section": item.section or None,
+                "file": page.file, "page": item.page,
+                "section_order": section_order[order_key],
+                "stem": item.stem, "options": [option.text for option in item.options],
+                "correct": sorted(correct), "tags": list(dict.fromkeys(item.tags)),
+                "kind": kind, "ready": ready, "confirmed": False,
+                "status": "draft",
+                "reason": "识别结果待确认，请核对题干、选项后点击确认。",
+            })
     return result[:MAX_QUESTIONS]
+
+
+def local_source(row, item):
+    return ExamSource(row["exam"], row["subject"], row["year"], "用户导入", None, None, row["paper"],
+                      item["file"], item["page"])
+
+
+def local_citation(source, item):
+    return {"exam": source.exam, "subject": source.subject, "year": source.year, "publisher": source.publisher,
+            "url": None, "license_url": None, "number": item["number"], "paper": source.paper,
+            "imported": True, "filename": item["file"], "page": item["page"]}
 
 
 async def local_questions(account, target, context, client, *, count, excluded=(), replacement=None):
     text = replacement["topic"] if replacement else f"{context.lesson.title} {context.question} {context.lesson.summary}"
     with database() as connection:
         rows = store.matching_questions(connection, account, text, target)
+        if target is not None and len(rows) < count:
+            seen = {row["data"] for row in rows}
+            rows += [row for row in store.matching_questions(connection, account, text, None) if row["data"] not in seen]
     used = {normalized(stem).casefold() for stem in excluded}
-    candidates = []
+    choices, opens = [], []
     for row in rows:
         item = json.loads(row["data"])
         key = normalized(item["stem"]).casefold()
         if key in used or (replacement and item["kind"] != replacement["kind"]):
             continue
         used.add(key)
-        source = ExamSource(row["exam"], row["subject"], row["year"], "用户导入", None, None, row["paper"],
-                            item["file"], item["page"])
-        candidates.append((source, item))
-    if not candidates:
-        return []
-    try:
-        return await select_questions(client, exam_settings(), candidates, context, target, count, replacement)
-    except (ExamUnavailable, GenerationError):
-        return []
+        (choices if len(item.get("options") or []) >= 3 else opens).append((row, item))
+    output = []
+    if choices:
+        for _ in range(2):
+            try:
+                output = await select_questions(client, exam_settings(),
+                                                [(local_source(row, item), item) for row, item in choices],
+                                                context, target, count, replacement)
+            except (ExamUnavailable, GenerationError):
+                output = []
+            if output:
+                break
+    if len(output) < count and opens:
+        try:
+            selected = await select_open_questions(client, exam_settings(), opens, context)
+        except (ExamUnavailable, GenerationError):
+            selected = []
+        for row, item, _topic in selected:
+            if len(output) >= count:
+                break
+            try:
+                question = await convert_to_choice(item, context, client, settings=exam_settings())
+            except (GenerationError, ValidationError):
+                continue
+            output.append(question.model_dump() | {"origin": "past",
+                                                   "source": local_citation(local_source(row, item), item)})
+    return output[:count]
 
 
 async def read_payload(request, schema, message):
@@ -393,29 +302,45 @@ async def uploaded_pages(files):
         raise HTTPException(422, str(error)) from error
 
 
+async def read_batch(client, settings, pages, indexes, semaphore):
+    parts = []
+    for index in indexes:
+        page = pages[index - 1]
+        parts.append({"type": "text", "text": f"页标识 {index}\n{page.text}"})
+        parts.extend({"type": "image_url", "image_url": {"url": image}} for image in page.images)
+    async with semaphore:
+        reading = await request_json(parts, settings, client, IMPORT_PROMPT, READING, temperature=0)
+    return [(indexes, reading)]
+
+
+def batch_pages(pages):
+    batches, text_pages = [], []
+    for index, page in enumerate(pages, 1):
+        if page.images and not page.text:
+            if text_pages:
+                batches.append(text_pages)
+                text_pages = []
+            batches.append([index])
+        else:
+            text_pages.append(index)
+            if len(text_pages) == 4:
+                batches.append(text_pages)
+                text_pages = []
+    if text_pages:
+        batches.append(text_pages)
+    return batches
+
+
 async def recognize_files(files, client):
     pages = await uploaded_pages(files)
     try:
         settings = exam_settings()
         semaphore = asyncio.Semaphore(4)
-        batches, remaining = [], []
-        for index, page in enumerate(pages, 1):
-            if page.regions:
-                if remaining:
-                    batches.append(remaining)
-                    remaining = []
-                batches.append([index])
-            else:
-                remaining.append(index)
-                if len(remaining) == 4:
-                    batches.append(remaining)
-                    remaining = []
-        if remaining:
-            batches.append(remaining)
-        batches = await asyncio.gather(*(read_batch(client, settings, pages, batch, semaphore) for batch in batches))
+        readings = await asyncio.gather(
+            *(read_batch(client, settings, pages, batch, semaphore) for batch in batch_pages(pages)))
     except (GenerationError, ExamUnavailable) as error:
         raise HTTPException(502, "试卷解析暂未完成，请稍后重试。") from error
-    questions = reconcile(pages, [reading for batch in batches for reading in batch])
+    questions = draft_questions(pages, [reading for batch in readings for reading in batch])
     if not questions:
         raise HTTPException(422, "没有识别出可核对的题目，请检查试卷是否完整清晰。")
     return questions
@@ -433,9 +358,9 @@ async def import_paper(request: Request, user: User, client: Client):
     questions = await recognize_files(files, client)
     with database() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        paper_id, duplicate = store.save_paper(connection, account, payload, [name for name, _ in files],
-                                               fingerprint, questions)
-        return {"paper": store.get_paper(connection, account, paper_id), "duplicate": duplicate}
+        paper_id, duplicate, merged = store.save_paper(connection, account, payload, [name for name, _ in files],
+                                                       fingerprint, questions)
+        return {"paper": store.get_paper(connection, account, paper_id), "duplicate": duplicate, "merged": merged}
 
 
 @router.post("/{paper_id}/reprocess")
@@ -463,48 +388,126 @@ async def retry_question(paper_id: UUID4, question_id: int, request: Request, us
     account, paper_id = owner_id(user), str(paper_id)
     with database() as connection:
         original = store.get_paper(connection, account, paper_id)
-    target = next((item for item in original["questions"] if item["id"] == question_id), None) if original else None
-    if target is None:
+        live = store.get_question(connection, paper_id, question_id) if original else None
+    if original is None or live is None:
         raise HTTPException(404, "找不到此题。")
-    if target["status"] != "pending":
-        return {"paper": original}
+    if live.get("confirmed"):
+        raise HTTPException(409, "这道题已入库，请先编辑退回草稿再重新识别。")
     payload = await read_payload(request, QuestionRetry, "请选择该题的清晰照片和可选的参考答案。")
     files, _ = read_upload(payload)
     if not re.search(r"\.(png|jpe?g|webp)$", files[0][0], re.I):
         raise HTTPException(422, "请上传 PNG、JPG 或 WebP 照片。")
     pages = await uploaded_pages(files)
-    section, number = store.question_identity(target["section"], target["number"])
-    parts = [{"type": "text", "text": f"指定题号 {number}，原卷分组：{target['section'] or '无'}。"}]
+    section, number = store.question_identity(live.get("section"), live["number"])
+    parts = [{"type": "text", "text": f"指定题号 {number}，原卷分组：{live.get('section') or '无'}。"}]
     for index, page in enumerate(pages, 1):
         parts.append({"type": "text", "text": f"页标识 {index}\n{page.text}"})
         parts.extend({"type": "image_url", "image_url": {"url": image}} for image in page.images)
     try:
-        first, second = await reading_pair(client, exam_settings(), parts, asyncio.Semaphore(1),
-                                           RETRY_PROMPT, RETRY_VERIFY_PROMPT)
+        reading = await request_json(parts, exam_settings(), client, RETRY_PROMPT, READING, temperature=0)
     except (GenerationError, ExamUnavailable) as error:
         raise HTTPException(502, "暂未完成核对，请重试。") from error
 
     def matches(item):
-        _, item_section, item_number = item_key(item)
+        item_section, item_number = store.question_identity(item.section, item.number)
         return item_number == number and (not item_section or item_section == section)
 
-    for reading in (first, second):
-        reading.located = []
-        reading.questions = [item for item in reading.questions if item.page == 1 and matches(item)]
-        reading.answers = [item for item in reading.answers if matches(item)]
-    candidates = reconcile(pages, [(list(range(1, len(pages) + 1)), first, second)])
-    if len(candidates) != 1 or candidates[0]["status"] == "pending":
+    reading.located = []
+    reading.questions = [item for item in reading.questions if item.page == 1 and matches(item)]
+    reading.answers = [item for item in reading.answers if matches(item)]
+    candidates = draft_questions(pages, [(list(range(1, len(pages) + 1)), reading)])
+    if len(candidates) != 1 or not candidates[0]["stem"].strip():
         raise HTTPException(422, "仍无法核对这道题，请裁到单题并拍清题干、公式和全部选项。")
-    replacement = candidates[0] | {key: target[key] for key in ("file", "page", "section", "number")}
+    replacement = candidates[0] | {key: live[key] for key in ("file", "page", "section", "number")}
     with database() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        current = store.get_paper(connection, account, paper_id)
-        live = store.get_question(connection, paper_id, question_id) if current else None
-        if live is None:
+        if not store.get_paper(connection, account, paper_id):
             raise HTTPException(404, "找不到此题。")
-        if store.status(live) == "pending":
-            store.write_question(connection, paper_id, replacement | {"section_order": live.get("section_order", 0)},
-                                 question_id)
+        store.write_question(connection, paper_id, replacement | {"section_order": live.get("section_order", 0)},
+                             question_id)
+        return {"paper": store.get_paper(connection, account, paper_id)}
+
+
+def structural_ready(options, correct):
+    return bool(3 <= len(options) <= 6 and correct and len(set(options)) == len(options))
+
+
+@router.patch("/{paper_id}/questions/{question_id}")
+async def edit_question(paper_id: UUID4, question_id: int, request: Request, user: User):
+    account, paper_id = owner_id(user), str(paper_id)
+    payload = await read_payload(request, QuestionEdit, "请检查题目、选项和答案。")
+    options = list(payload.options)
+    correct = sorted(set(payload.correct))
+    if options and not 3 <= len(options) <= 6:
+        raise HTTPException(422, "选择题需要 3–6 个选项。")
+    if correct and not options:
+        raise HTTPException(422, "请先填写选项，再标注答案。")
+    if any(index >= len(options) for index in correct):
+        raise HTTPException(422, "答案与选项不匹配。")
+    ready = structural_ready(options, correct)
+    kind = ("multiple" if len(correct) > 1 else "single") if options else "other"
+    with database() as connection:
+        original = store.get_paper(connection, account, paper_id)
+        live = store.get_question(connection, paper_id, question_id) if original else None
+    if original is None or live is None:
+        raise HTTPException(404, "找不到此题。")
+    item = live | {
+        "stem": payload.stem, "options": options, "correct": correct, "kind": kind,
+        "ready": ready, "confirmed": False, "status": "draft",
+        "reason": "识别结果待确认，请核对题干、选项后点击确认。",
+    }
+    with database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        if not store.get_paper(connection, account, paper_id):
+            raise HTTPException(404, "找不到此试卷。")
+        store.write_question(connection, paper_id, item, question_id)
+        return {"paper": store.get_paper(connection, account, paper_id)}
+
+
+@router.patch("/{paper_id}/questions/{question_id}/tags")
+async def edit_tags(paper_id: UUID4, question_id: int, request: Request, user: User):
+    account, paper_id = owner_id(user), str(paper_id)
+    payload = await read_payload(request, QuestionTags, "请至少保留一个知识点，最多八个。")
+    tags = list(dict.fromkeys(tag.strip() for tag in payload.tags if tag.strip()))
+    if not 1 <= len(tags) <= 8:
+        raise HTTPException(422, "请至少保留一个知识点，最多八个。")
+    with database() as connection:
+        original = store.get_paper(connection, account, paper_id)
+        live = store.get_question(connection, paper_id, question_id) if original else None
+    if original is None or live is None:
+        raise HTTPException(404, "找不到此题。")
+    item = live | {"tags": tags}
+    with database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        if not store.get_paper(connection, account, paper_id):
+            raise HTTPException(404, "找不到此试卷。")
+        store.write_question(connection, paper_id, item, question_id)
+        return {"paper": store.get_paper(connection, account, paper_id)}
+
+
+@router.post("/{paper_id}/questions/{question_id}/confirm")
+async def confirm_question(paper_id: UUID4, question_id: int, user: User):
+    account, paper_id = owner_id(user), str(paper_id)
+    with database() as connection:
+        original = store.get_paper(connection, account, paper_id)
+        live = store.get_question(connection, paper_id, question_id) if original else None
+    if original is None or live is None:
+        raise HTTPException(404, "找不到此题。")
+    if not live["stem"].strip():
+        raise HTTPException(422, "请先填写题干。")
+    options, correct = live.get("options") or [], live.get("correct") or []
+    if correct and not 3 <= len(options) <= 6:
+        raise HTTPException(422, "请先补全 3–6 个选项。")
+    if any(index >= len(options) for index in correct):
+        raise HTTPException(422, "答案与选项不匹配。")
+    ready = bool(live.get("ready"))
+    item = live | {"confirmed": True, "status": "ready" if ready else "review_only",
+                   "reason": "" if ready else "缺少可核对的答案，或题型暂不支持自动判分。"}
+    with database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        if not store.get_paper(connection, account, paper_id):
+            raise HTTPException(404, "找不到此试卷。")
+        store.write_question(connection, paper_id, item, question_id)
         return {"paper": store.get_paper(connection, account, paper_id)}
 
 

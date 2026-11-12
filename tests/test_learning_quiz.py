@@ -141,7 +141,8 @@ def test_initial_review_retry_then_grade_and_replace_single_question(client, qui
                 assert data["scope"]["required_topics"] == ["开口"]
                 return {"topics": ["开口"], "questions": [question(100, kind="multiple")]}
             if reviews:
-                assert data["feedback"] == ["核对题干"]
+                assert "核对题干" in data["feedback"]
+                assert any("初审独立求解" in item for item in data["feedback"])
             return draft()
         if prompt == FIRST_REVIEW_PROMPT:
             reviews += 1

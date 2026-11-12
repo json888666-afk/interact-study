@@ -15,8 +15,12 @@ def initialize_papers(connection):
     )""")
     connection.execute("""CREATE TABLE IF NOT EXISTS imported_questions (
         id INTEGER PRIMARY KEY, paper_id TEXT NOT NULL REFERENCES imported_papers(id) ON DELETE CASCADE,
-        data TEXT NOT NULL, searchable TEXT NOT NULL, ready INTEGER NOT NULL
+        data TEXT NOT NULL, searchable TEXT NOT NULL, ready INTEGER NOT NULL,
+        confirmed INTEGER NOT NULL DEFAULT 0
     )""")
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(imported_questions)")}
+    if "confirmed" not in columns:
+        connection.execute("ALTER TABLE imported_questions ADD COLUMN confirmed INTEGER NOT NULL DEFAULT 0")
     connection.execute("CREATE INDEX IF NOT EXISTS imported_questions_by_paper ON imported_questions(paper_id)")
     connection.execute("CREATE VIRTUAL TABLE IF NOT EXISTS imported_question_search USING fts5(searchable)")
     connection.execute("""CREATE TRIGGER IF NOT EXISTS imported_question_search_insert
@@ -32,6 +36,7 @@ def initialize_papers(connection):
         DELETE FROM imported_question_search WHERE rowid = old.id;
         INSERT INTO imported_question_search(rowid, searchable) VALUES (new.id, new.searchable);
     END""")
+    merge_duplicate_papers(connection)
 
 
 def compact(value):
@@ -69,7 +74,7 @@ def matching_questions(connection, account_id, text, target=None, *, limit=20):
         FROM imported_question_search s
         JOIN imported_questions q ON q.id = s.rowid
         JOIN imported_papers p ON p.id = q.paper_id
-        WHERE imported_question_search MATCH ? AND p.account_id = ? AND q.ready = 1"""
+        WHERE imported_question_search MATCH ? AND p.account_id = ? AND q.confirmed = 1"""
         + filters + " ORDER BY bm25(imported_question_search), q.id DESC LIMIT ?", (*args, limit)).fetchall()
 
 
@@ -86,30 +91,42 @@ def number_order(number):
 
 
 def status(item):
-    return item.get("status", "ready" if item["ready"] else "review_only")
+    if not item.get("confirmed"):
+        return "draft"
+    return "ready" if item.get("ready") else "review_only"
+
+
+def rank(item):
+    if not item.get("confirmed"):
+        return 0
+    return 2 if item.get("ready") else 1
 
 
 def question_rows(connection, paper_id):
-    return [(row["id"], json.loads(row["data"])) for row in connection.execute(
-        "SELECT id, data FROM imported_questions WHERE paper_id = ? ORDER BY id", (paper_id,),
-    )]
+    return [(row["id"], json.loads(row["data"]) | {"confirmed": bool(row["confirmed"])})
+            for row in connection.execute(
+                "SELECT id, data, confirmed FROM imported_questions WHERE paper_id = ? ORDER BY id", (paper_id,),
+            )]
 
 
 def get_question(connection, paper_id, question_id):
-    row = connection.execute("SELECT data FROM imported_questions WHERE paper_id = ? AND id = ?",
+    row = connection.execute("SELECT data, confirmed FROM imported_questions WHERE paper_id = ? AND id = ?",
                              (paper_id, question_id)).fetchone()
-    return json.loads(row["data"]) if row else None
+    return (json.loads(row["data"]) | {"confirmed": bool(row["confirmed"])}) if row else None
 
 
 def write_question(connection, paper_id, item, question_id=None):
     terms = " ".join(tokens(" ".join([item["stem"], *item["tags"]])))
-    values = (json.dumps(item, ensure_ascii=False), terms, int(item["ready"]), paper_id)
+    values = (json.dumps(item, ensure_ascii=False), terms, int(item["ready"]),
+              int(item.get("confirmed", False)), paper_id)
     if question_id is None:
         return connection.execute(
-            "INSERT INTO imported_questions (data, searchable, ready, paper_id) VALUES (?, ?, ?, ?)", values,
+            "INSERT INTO imported_questions (data, searchable, ready, confirmed, paper_id) VALUES (?, ?, ?, ?, ?)",
+            values,
         ).lastrowid
-    connection.execute("UPDATE imported_questions SET data = ?, searchable = ?, ready = ? WHERE paper_id = ? AND id = ?",
-                       (*values, question_id))
+    connection.execute(
+        "UPDATE imported_questions SET data = ?, searchable = ?, ready = ?, confirmed = ? WHERE paper_id = ? AND id = ?",
+        (*values, question_id))
     return question_id
 
 
@@ -122,7 +139,6 @@ def merge_questions(connection, paper_id, questions):
         section, number = question_identity(item.get("section"), item["number"])
         if section:
             incoming.setdefault((item["file"], item["page"], number), set()).add(section)
-    ranks = {"pending": 0, "review_only": 1, "ready": 2}
     for item in questions:
         section, number = question_identity(item.get("section"), item["number"])
         key = item["file"], item["page"], number
@@ -139,7 +155,8 @@ def merge_questions(connection, paper_id, questions):
                 siblings[section] = (write_question(connection, paper_id, item), item)
             continue
         question_id, old = siblings[match]
-        keep = item if ranks[status(item)] > ranks[status(old)] else old
+        # 重新识别只产生草稿：已确认的题优先保留，草稿之间以新结果为准。
+        keep = item if rank(item) > rank(old) or (rank(item) == 0 and rank(old) == 0) else old
         updated = keep | {"section": item.get("section") or old.get("section") or match or None, "number": number,
                           "section_order": item.get("section_order", old.get("section_order", 0))}
         if updated != old:
@@ -154,9 +171,31 @@ def find_duplicate(connection, account_id, metadata, fingerprint):
         (account_id, exam_key(metadata.exam, metadata.subject), compact(metadata.subject), fingerprint)).fetchone()
 
 
+def find_exam_paper(connection, account_id, exam, subject):
+    return connection.execute("""SELECT id, filenames FROM imported_papers
+        WHERE account_id = ? AND exam_key = ? AND subject_key = ?
+        ORDER BY created_at, rowid LIMIT 1""",
+        (account_id, exam_key(exam, subject), compact(subject))).fetchone()
+
+
+def add_filenames(connection, paper_id, filenames):
+    row = connection.execute("SELECT filenames FROM imported_papers WHERE id = ?", (paper_id,)).fetchone()
+    if not row:
+        return
+    current = json.loads(row["filenames"])
+    for name in filenames:
+        if name not in current:
+            current.append(name)
+    connection.execute("UPDATE imported_papers SET filenames = ? WHERE id = ?", (json.dumps(current), paper_id))
+
+
 def save_paper(connection, account_id, metadata, filenames, fingerprint, questions):
     if existing := find_duplicate(connection, account_id, metadata, fingerprint):
-        return existing["id"], True
+        return existing["id"], True, False
+    if target := find_exam_paper(connection, account_id, metadata.exam, metadata.subject):
+        merge_questions(connection, target["id"], questions)
+        add_filenames(connection, target["id"], filenames)
+        return target["id"], False, True
     paper_id = str(uuid4())
     connection.execute("""INSERT INTO imported_papers
         (id, account_id, exam, exam_key, subject, subject_key, year, paper, filenames, fingerprint)
@@ -165,18 +204,39 @@ def save_paper(connection, account_id, metadata, filenames, fingerprint, questio
         metadata.subject, compact(metadata.subject), metadata.year, metadata.paper, json.dumps(filenames), fingerprint,
     ))
     merge_questions(connection, paper_id, questions)
-    return paper_id, False
+    return paper_id, False, False
+
+
+def merge_duplicate_papers(connection):
+    groups = connection.execute("""SELECT account_id, exam_key, subject_key
+        FROM imported_papers GROUP BY account_id, exam_key, subject_key HAVING COUNT(*) > 1""").fetchall()
+    for group in groups:
+        papers = connection.execute("""SELECT id, filenames FROM imported_papers
+            WHERE account_id = ? AND exam_key = ? AND subject_key = ?
+            ORDER BY created_at, rowid""", (group["account_id"], group["exam_key"], group["subject_key"])).fetchall()
+        target, duplicates = papers[0], papers[1:]
+        names = []
+        for duplicate in duplicates:
+            names.extend(json.loads(duplicate["filenames"]))
+            merge_questions(connection, target["id"],
+                            [data for _, data in question_rows(connection, duplicate["id"])])
+        add_filenames(connection, target["id"], names)
+        for duplicate in duplicates:
+            connection.execute("DELETE FROM imported_papers WHERE id = ?", (duplicate["id"],))
 
 
 PAPER_SUMMARY = """SELECT p.id, p.exam, p.subject, p.year, p.paper, p.filenames, p.created_at,
-    COUNT(q.id) AS question_count, COALESCE(SUM(q.ready), 0) AS ready_count,
-    COALESCE(SUM(json_extract(q.data, '$.status') = 'pending'), 0) AS pending_count
+    COUNT(q.id) AS question_count,
+    COALESCE(SUM(q.confirmed = 0), 0) AS draft_count,
+    COALESCE(SUM(q.confirmed = 1 AND q.ready = 1), 0) AS ready_count,
+    COALESCE(SUM(q.confirmed = 1 AND q.ready = 0), 0) AS review_count
     FROM imported_papers p LEFT JOIN imported_questions q ON q.paper_id = p.id"""
 
 
 def paper_summary(row):
-    return dict(row) | {"filenames": json.loads(row["filenames"]),
-                        "review_count": row["question_count"] - row["ready_count"] - row["pending_count"]}
+    summary = dict(row)
+    return summary | {"filenames": json.loads(row["filenames"]),
+                      "confirmed_count": summary["ready_count"] + summary["review_count"]}
 
 
 def list_papers(connection, account_id):
@@ -206,7 +266,8 @@ def get_paper(connection, account_id, paper_id):
         return file_order.get(item["file"], len(filenames)), item["page"], section_position, number_order(number)
 
     return paper_summary(row) | {"questions": [
-        {key: item[key] for key in ("number", "stem", "options", "kind", "tags", "ready", "file", "page")}
-        | {"id": question_id, "section": item.get("section"), "status": status(item), "reason": item.get("reason", "")}
+        {key: item[key] for key in ("number", "stem", "options", "correct", "kind", "tags", "ready", "file", "page")}
+        | {"id": question_id, "section": item.get("section"), "confirmed": item.get("confirmed", False),
+           "status": status(item), "reason": item.get("reason", "")}
         for question_id, item in sorted(questions, key=order)
     ]}

@@ -52,28 +52,8 @@ def photo_page(filename, data):
         if source.format not in {"PNG", "JPEG", "WEBP"} or source.width * source.height > MAX_PIXELS:
             raise ValueError("仅支持 PNG、JPEG、WebP 图片，且不得超过 2500 万像素。")
         image = ImageOps.exif_transpose(source).convert("RGB")
-    width, height = image.size
-    overview = encode_image(image)
-    boxes = []
-    if height >= 600 or width >= 650:
-        rows = min(5, max(2, math.ceil(height / min(1400, max(650, width)))))
-        # Read strips across the gutter too, so a single-column question isn't cut in half.
-        for start in range(rows):
-            overlap = 0.18 / rows
-            top = max(0, start / rows - overlap)
-            bottom = min(1, (start + 1) / rows + overlap)
-            boxes.append((0, top, 1, bottom))
-        if width >= 650:
-            for left, right in ((0, 0.56), (0.44, 1)):
-                for start in range(rows):
-                    overlap = 0.18 / rows
-                    boxes.append((left, max(0, start / rows - overlap), right, min(1, (start + 1) / rows + overlap)))
-    regions = tuple(
-        ((round(l * 1000), round(t * 1000), round(r * 1000), round(b * 1000)),
-         encode_image(image.crop((round(l * width), round(t * height), round(r * width), round(b * height)))))
-        for l, t, r, b in boxes
-    )
-    return Page(filename, 1, images=(overview,), regions=regions)
+    # 整页只交给模型读取一次，由模型切分题目；本地不再生成区域裁剪。
+    return Page(filename, 1, images=(encode_image(image),))
 
 
 def read_pdf(filename, data):
