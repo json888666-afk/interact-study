@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { askLesson, type LearningContext, type Turn } from './learning-api'
 import { LoadingProgress } from './loading-progress'
+import { Markdown } from './markdown'
 
 export function AskPanel({ context, draft, setDraft, onAnswer }: {
   context: LearningContext
@@ -63,7 +64,7 @@ export function AskPanel({ context, draft, setDraft, onAnswer }: {
     <section className="workspace-panel" aria-label="问原理">
       {context.history.length > 0 && <ol className="feedback-list" aria-live="polite">
         {context.history.map((turn, index) => <li key={index}>
-          <strong>{turn.question}</strong><p className="explanation">{turn.answer}</p>
+          <strong>{turn.question}</strong><div className="markdown explanation">{turn.answer}</div>
         </li>)}
       </ol>}
       <form onSubmit={submit}>

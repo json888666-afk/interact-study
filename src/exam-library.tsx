@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { learningRequest } from './learning-api'
 import { LoadingProgress } from './loading-progress'
+import { InlineMarkdown, Markdown } from './markdown'
 
 type Paper = {
   id: string
@@ -10,14 +11,16 @@ type Paper = {
   paper: string | null
   filenames: string[]
   question_count: number
+  draft_count: number
+  confirmed_count: number
   ready_count: number
-  pending_count: number
   review_count: number
 }
 
 type LibraryQuestion = {
-  id: number; number: string; section: string | null; stem: string; options: string[]; tags: string[]
-  status: 'ready' | 'review_only' | 'pending'; reason: string; file: string; page: number
+  id: number; number: string; section: string | null; stem: string; options: string[]; correct: number[]
+  tags: string[]; confirmed: boolean; status: 'draft' | 'ready' | 'review_only'; reason: string
+  file: string; page: number
 }
 
 type PaperDetail = Paper & {
@@ -40,7 +43,18 @@ function paperTitle(paper: Paper) {
 }
 
 function paperCounts(paper: Paper) {
-  return `${paper.ready_count} 道可判分 · ${paper.review_count} 道仅供复习 · ${paper.pending_count} 道待确认`
+  return `${paper.draft_count} 道未确认 · ${paper.confirmed_count} 道已入库（${paper.ready_count} 道可判分）`
+}
+
+function questionStatus(question: LibraryQuestion) {
+  if (!question.confirmed) return '未确认'
+  return question.status === 'ready' ? '已入库 · 可判分' : '已入库 · 仅供复习'
+}
+
+function stemSource(question: LibraryQuestion) {
+  const label = `${question.section ? question.section + ' · ' : ''}${question.number}.`
+  const stem = question.stem.trim() || '识别结果为空'
+  return /^\s*\|/.test(stem) ? `**${label}**\n\n${stem}` : `**${label}** ${stem}`
 }
 
 function RepairForm({ target, busy, onCancel, onSubmit }: {
@@ -71,6 +85,127 @@ function RepairForm({ target, busy, onCancel, onSubmit }: {
   </form>
 }
 
+function EditForm({ question, busy, onCancel, onSubmit }: {
+  question: LibraryQuestion
+  busy: boolean
+  onCancel: () => void
+  onSubmit: (data: { stem: string; options: string[]; correct: number[] }) => void
+}) {
+  const [stem, setStem] = useState(question.stem)
+  const [options, setOptions] = useState(() => {
+    const values = question.options.slice(0, 6)
+    return [...values, ...Array(6 - values.length).fill('')]
+  })
+  const [correct, setCorrect] = useState(() => new Set(question.correct || []))
+
+  function toggle(index: number) {
+    const next = new Set(correct)
+    if (next.has(index)) next.delete(index)
+    else next.add(index)
+    setCorrect(next)
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const pairs = options
+      .map((text, index) => ({ text: text.trim(), correct: correct.has(index) }))
+      .filter((pair) => pair.text)
+    const selected = pairs.map((pair, index) => pair.correct ? index : -1).filter((index) => index >= 0)
+    onSubmit({ stem: stem.trim(), options: pairs.map((pair) => pair.text), correct: selected })
+  }
+
+  return <form className="paper-repair" onSubmit={submit}>
+    <fieldset disabled={busy}>
+      <legend>编辑题目</legend>
+      <label>题干
+        <textarea value={stem} onChange={(event) => setStem(event.target.value)} maxLength={1000} required />
+      </label>
+      <div className="markdown-preview" aria-label="题干预览">
+        <Markdown>{stem || '（空）'}</Markdown>
+      </div>
+      <fieldset>
+        <legend>选项（空项忽略，按 A–F 顺序保存）</legend>
+        {options.map((text, index) => <label key={index}>
+          {String.fromCharCode(65 + index)}
+          <input value={text} maxLength={300}
+            onChange={(event) => { const next = [...options]; next[index] = event.target.value; setOptions(next) }} />
+        </label>)}
+      </fieldset>
+      <fieldset>
+        <legend>正确答案</legend>
+        {options.map((text, index) => text.trim() && <label key={index}>
+          <input type="checkbox" checked={correct.has(index)} onChange={() => toggle(index)} />
+          {String.fromCharCode(65 + index)}
+        </label>)}
+      </fieldset>
+      <div className="quiz-actions">
+        <button className="primary-button" type="submit">保存</button>
+        <button className="quiet-button" type="button" onClick={onCancel}>取消</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+function TagForm({ question, suggestions, busy, onCancel, onSubmit }: {
+  question: LibraryQuestion
+  suggestions: string[]
+  busy: boolean
+  onCancel: () => void
+  onSubmit: (tags: string[]) => void
+}) {
+  const [tags, setTags] = useState(question.tags)
+  const [draft, setDraft] = useState('')
+  const value = draft.trim()
+  const pending = value && !tags.includes(value) && tags.length < 8 ? value : ''
+  const nextTags = pending ? [...tags, pending] : tags
+
+  function add() {
+    if (!pending) {
+      setDraft('')
+      return
+    }
+    setTags(nextTags)
+    setDraft('')
+  }
+
+  function remove(tag: string) {
+    setTags(tags.filter((item) => item !== tag))
+  }
+
+  return <form className="paper-repair" onSubmit={(event) => {
+    event.preventDefault()
+    if (nextTags.length) onSubmit(nextTags)
+  }}>
+    <fieldset disabled={busy}>
+      <legend>编辑知识点</legend>
+      <div className="tag-chips">
+        {tags.map((tag) => <span key={tag} className="tag-chip">{tag}
+          <button type="button" aria-label={`删除${tag}`} onClick={() => remove(tag)}>×</button>
+        </span>)}
+      </div>
+      <label>添加知识点
+        <input value={draft} list="tag-suggestions" maxLength={60}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              add()
+            }
+          }} />
+      </label>
+      <datalist id="tag-suggestions">{suggestions.map((tag) => <option key={tag} value={tag} />)}</datalist>
+      <div className="quiz-actions">
+        <button className="quiet-button" type="button" onClick={add} disabled={!pending}>添加</button>
+      </div>
+      <p className="subject">至少 1 个、最多 8 个；保存后不会改变题目的确认状态。</p>
+      <div className="quiz-actions">
+        <button className="primary-button" type="submit" disabled={!nextTags.length}>保存</button>
+        <button className="quiet-button" type="button" onClick={onCancel}>取消</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
 export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
   const [papers, setPapers] = useState<Paper[]>([])
   const [active, setActive] = useState<PaperDetail | null>(null)
@@ -80,6 +215,8 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
   const [message, setMessage] = useState('')
   const [removeId, setRemoveId] = useState<string | null>(null)
   const [repair, setRepair] = useState<'paper' | number | null>(null)
+  const [editing, setEditing] = useState<number | null>(null)
+  const [tagging, setTagging] = useState<number | null>(null)
 
   useEffect(() => {
     if (!signedIn) return
@@ -90,6 +227,11 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [signedIn])
+
+  function updatePaper(paper: PaperDetail) {
+    setPapers((current) => current.map((item) => item.id === paper.id ? paper : item))
+    setActive(paper)
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -105,7 +247,7 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
     setError('')
     setMessage('')
     try {
-      const result = await learningRequest<{ paper: PaperDetail; duplicate: boolean }>(libraryUrl + '/imports', {
+      const result = await learningRequest<{ paper: PaperDetail; duplicate: boolean; merged: boolean }>(libraryUrl + '/imports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -114,10 +256,12 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
           consent: values.get('consent') === 'on', files: await Promise.all(files.map(encodedFile)),
         }),
       })
-      setPapers((current) => [result.paper, ...current.filter((paper) => paper.id !== result.paper.id)])
-      setActive(result.paper)
+      updatePaper(result.paper)
       setRepair(null)
-      setMessage(result.duplicate ? '这份试卷已在题库中。' : `已导入 ${result.paper.question_count} 道题，其中 ${result.paper.ready_count} 道可用于自动判分。`)
+      setEditing(null)
+      setMessage(result.duplicate ? '这份试卷已在题库中。'
+        : result.merged ? '已合并到已有试卷。'
+        : `已识别 ${result.paper.question_count} 道题，请逐题核对后点击「确认入库」。`)
       form.reset()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '导入失败，请重试。')
@@ -129,6 +273,7 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
   async function openPaper(id: string) {
     setError('')
     setRepair(null)
+    setEditing(null)
     try {
       const result = await learningRequest<{ paper: PaperDetail }>(libraryUrl + '/' + id, {})
       setActive(result.paper)
@@ -157,12 +302,71 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ consent: values.get('consent') === 'on', files: await Promise.all(files.map(encodedFile)) }),
       })
-      setPapers((current) => current.map((paper) => paper.id === result.paper.id ? result.paper : paper))
-      setActive(result.paper)
+      updatePaper(result.paper)
       setMessage(repair === 'paper' ? '重新识别完成，已合并到原试卷。' : '已更新这道题。')
       setRepair(null)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '识别失败，请重试。')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveEdit(questionId: number, data: { stem: string; options: string[]; correct: number[] }) {
+    if (!active || busy) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const result = await learningRequest<{ paper: PaperDetail }>(`${libraryUrl}/${active.id}/questions/${questionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      updatePaper(result.paper)
+      setEditing(null)
+      setMessage('已保存，请点击「确认入库」。')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '保存失败，请重试。')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmQuestion(questionId: number) {
+    if (!active || busy) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const result = await learningRequest<{ paper: PaperDetail }>(
+        `${libraryUrl}/${active.id}/questions/${questionId}/confirm`, { method: 'POST' })
+      updatePaper(result.paper)
+      setMessage('已确认入库。')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '确认失败，请重试。')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveTags(questionId: number, tags: string[]) {
+    if (!active || busy) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const result = await learningRequest<{ paper: PaperDetail }>(
+        `${libraryUrl}/${active.id}/questions/${questionId}/tags`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags }),
+        })
+      updatePaper(result.paper)
+      setTagging(null)
+      setMessage('知识点已更新。')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '保存失败，请重试。')
     } finally {
       setBusy(false)
     }
@@ -227,15 +431,37 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
         <p className="subject">{active.filenames.join('、')}</p>
         <p className="subject">{paperCounts(active)}</p>
         {repair === 'paper' ? <RepairForm target="paper" busy={busy} onCancel={() => setRepair(null)} onSubmit={submitRepair} />
-          : <button className="quiet-button" type="button" disabled={busy} onClick={() => setRepair('paper')}>重新识别</button>}
+          : <button className="quiet-button" type="button" disabled={busy} onClick={() => { setRepair('paper'); setEditing(null) }}>重新识别</button>}
         <ol>{active.questions.map((question) => <li key={question.id}>
-          <p><strong>{question.section ? question.section + ' · ' : ''}{question.number}.</strong> {question.stem || '正文待核对'}</p>
-          {!!question.options.length && <ol type="A">{question.options.map((option, i) => <li key={i}>{option}</li>)}</ol>}
-          <p className="subject">{question.file} · 第 {question.page} 页 · {question.status === 'ready' ? '可判分' : question.status === 'pending' ? '待确认' : '仅供复习'}</p>
-          {question.status === 'pending' && <><p>{question.reason}</p>
-            {repair === question.id ? <RepairForm target={question.id} busy={busy} onCancel={() => setRepair(null)} onSubmit={submitRepair} />
-              : <button className="quiet-button" type="button" disabled={busy} onClick={() => setRepair(question.id)}>重新提交这道题</button>}
-          </>}
+          {tagging === question.id
+            ? <TagForm question={question} busy={busy}
+                suggestions={[...new Set(active.questions.flatMap((item) => item.tags))]
+                  .filter((tag) => !question.tags.includes(tag))}
+                onCancel={() => setTagging(null)}
+                onSubmit={(tags) => void saveTags(question.id, tags)} />
+            : editing === question.id
+              ? <EditForm question={question} busy={busy} onCancel={() => setEditing(null)}
+                  onSubmit={(data) => void saveEdit(question.id, data)} />
+              : <>
+                <Markdown className="question-stem">{stemSource(question)}</Markdown>
+                {!!question.options.length && <ol type="A">{question.options.map((option, i) =>
+                  <li key={i}><InlineMarkdown>{option}</InlineMarkdown></li>)}</ol>}
+                {!!question.correct.length && <p className="subject">答案：{question.correct.map((i) => String.fromCharCode(65 + i)).join('、')}</p>}
+                <p className="subject">{question.file} · 第 {question.page} 页 · {questionStatus(question)}</p>
+                {!question.confirmed && <p className="subject">{question.reason}</p>}
+                <div className="quiz-actions">
+                  <button className="quiet-button" type="button" disabled={busy}
+                    onClick={() => { setEditing(question.id); setRepair(null); setTagging(null) }}>编辑</button>
+                  <button className="quiet-button" type="button" disabled={busy}
+                    onClick={() => { setTagging(question.id); setEditing(null); setRepair(null) }}>编辑知识点</button>
+                  {!question.confirmed && <button className="primary-button" type="button" disabled={busy}
+                    onClick={() => void confirmQuestion(question.id)}>确认入库</button>}
+                  {!question.confirmed && (repair === question.id
+                    ? <RepairForm target={question.id} busy={busy} onCancel={() => setRepair(null)} onSubmit={submitRepair} />
+                    : <button className="quiet-button" type="button" disabled={busy}
+                        onClick={() => { setRepair(question.id); setEditing(null); setTagging(null) }}>重新提交这道题</button>)}
+                </div>
+              </>}
           <div className="quiz-actions">{question.tags.map((tag) =>
             <a key={tag} href={'/?question=' + encodeURIComponent(`请讲解${tag}`)}>学习{tag}</a>)}</div>
         </li>)}</ol>

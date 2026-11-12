@@ -4,6 +4,7 @@ import { LoadingProgress } from './loading-progress'
 import { quizRequest, startQuiz, type Drill, type Question, type Quiz, type QuizIdentity } from './quiz-api'
 import { CelebrationNotice, ReplacementNotice, useNotice } from './quiz-notices'
 import { leaderboardLink } from './account-pages'
+import { InlineMarkdown, Markdown } from './markdown'
 
 const awaitingReview = (question: Question) => question.review?.status === 'pending'
 const paused = (question: Question) => awaitingReview(question) || question.review?.status === 'replacement_failed'
@@ -51,7 +52,8 @@ function QuestionCard({ question, busy, act, drillMode = false, drillContent }: 
       </p>}
       <form onSubmit={submit}>
         <fieldset className="quiz-options" disabled={busy || !!answer || hideAnswer}>
-          <legend>{question.stem}</legend>
+          <legend className="sr-only">{question.stem}</legend>
+          <Markdown className="question-stem">{question.stem}</Markdown>
           {question.options.map((option, index) => <label key={index}>
             <input type={question.kind === 'single' ? 'radio' : 'checkbox'} name={inputId}
               checked={!hideAnswer && (answer?.selected ?? selected).includes(index)}
@@ -60,7 +62,7 @@ function QuestionCard({ question, busy, act, drillMode = false, drillContent }: 
                 setSelected(question.kind === 'single' ? [index]
                   : event.target.checked ? [...selected, index] : selected.filter((item) => item !== index))
               }} />
-            <span>{String.fromCharCode(65 + index)}. {option}</span>
+            <span>{String.fromCharCode(65 + index)}. <InlineMarkdown>{option}</InlineMarkdown></span>
           </label>)}
           {!drillMode && <label>
             <input type={question.kind === 'single' ? 'radio' : 'checkbox'} name={inputId}
@@ -79,7 +81,7 @@ function QuestionCard({ question, busy, act, drillMode = false, drillContent }: 
         <strong>{drillMode ? '本题已提交' : answer.is_correct ? '回答正确' : '回答错误'}</strong>
         {!drillMode && (answer.correct ? <>
           <p>参考答案 {letters(answer.correct)}</p>
-          <p className="explanation">{answer.explanation}</p>
+          <div className="markdown explanation">{answer.explanation}</div>
           {!question.drill && <button className="quiet-button" type="button" disabled={busy}
             onClick={() => act('drill/start', {})}>开始巩固</button>}
         </> : <button className="quiet-button" type="button" disabled={busy}
@@ -127,10 +129,10 @@ function DrillPanel({ drill, busy, showNotice, request }: {
       {drill.feedback.length > 0 && <details open={drill.status !== 'passed'}>
         <summary>上一轮错题解析</summary>
         {drill.feedback.map((item) => <div key={item.id} className="quiz-feedback">
-          <strong>{item.stem}</strong>
+          <Markdown className="question-stem">{item.stem}</Markdown>
           <p>你的选择 {letters(item.selected)}</p>
           <p>参考答案 {item.correct.map((option) => letters([option]) + '. ' + item.options[option]).join('、')}</p>
-          <p className="explanation">{item.explanation}</p>
+          <div className="markdown explanation">{item.explanation}</div>
         </div>)}
       </details>}
       {drill.status === 'generating' && <LoadingProgress label="正在分析考点并生成巩固题…" />}
