@@ -175,6 +175,7 @@ export function QuizPanel({ owner, version, context, onReturn }: {
   const active = useRef<AbortController | null>(null)
   const [replacementSeen, dismissReplacement] = useNotice()
   const [celebrationSeen, dismissCelebration, rememberCelebration] = useNotice('celebration')
+  const [passSeen, dismissPass, rememberPass] = useNotice('pass')
 
   async function run(action: (signal: AbortSignal) => Promise<Quiz>, resetIndex = false) {
     if (active.current) return
@@ -255,6 +256,7 @@ export function QuizPanel({ owner, version, context, onReturn }: {
     && !paused(item) && item.drill?.required && item.drill.status === 'passed' && !celebrationSeen(item.id)) ?? -1
   const celebration = quiz?.questions[celebrationIndex]
   const report = quiz?.report
+  const passCelebration = !!quiz && !!report?.passed && !passSeen(quiz.id) && !replacement && !celebration
   const lastCelebration = celebrationIndex === (quiz?.questions.length ?? 0) - 1
   const celebrationAction = !lastCelebration ? '挑战下一题' : report ? '查看练习报告' : '继续作答'
   const weak = report?.topics.filter((topic) => topic.correct < topic.total).map((topic) => topic.topic) ?? []
@@ -283,6 +285,15 @@ export function QuizPanel({ owner, version, context, onReturn }: {
               reportElement?.scrollIntoView()
             }
           }
+        }} />}
+      {passCelebration && quiz && <CelebrationNotice key={'pass-' + quiz.id}
+        variant="badge" title="恭喜你，掌握了一个知识点！"
+        message="正确率达到 90%以上，本次练习通过。" action="查看练习报告" showStay={false}
+        onOpen={() => rememberPass(quiz.id)} onClose={() => {
+          dismissPass(quiz.id)
+          const reportElement = document.getElementById('quiz-report')
+          reportElement?.focus()
+          reportElement?.scrollIntoView()
         }} />}
       <div className="quiz-header">
         <div><h2 id="quiz-title">检查理解</h2><p>多选须完全正确。正确率达到 90% 即通过。</p>

@@ -85,6 +85,14 @@ test('asks with screenshot, resumes practice after refresh and returns to the sa
     }
     if (index < 9) await page.getByRole('button', { name: '下一题' }).click()
   }
+  const passDialog = page.getByRole('dialog', { name: '恭喜你，掌握了一个知识点！' })
+  await expect(passDialog).toBeVisible()
+  await expect(passDialog.getByText('正确率达到 90%以上，本次练习通过。')).toBeVisible()
+  await expect(passDialog.locator('.quiz-badge')).toBeVisible()
+  await expect(passDialog.locator('.quiz-stars')).toHaveCount(0)
+  await expect(passDialog.locator('.quiz-confetti')).toHaveCount(0)
+  await expect(passDialog.getByText('知识 +1')).toBeVisible()
+  await passDialog.getByRole('button', { name: '查看练习报告' }).click()
   await expect(page.getByRole('heading', { name: '练习通过' })).toBeVisible()
   await expect(page.getByText('答对 9 / 10 题 · 正确率 90%')).toBeVisible()
   await page.getByRole('link', { name: '查看排行榜' }).click()
