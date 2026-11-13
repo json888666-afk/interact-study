@@ -157,6 +157,17 @@ function App({ user }: { user: User | null }) {
                 aria-current={path === '/exam-library' ? 'page' : undefined}>我的试卷</a>
               <a href={leaderboardLink()} aria-current={path === '/leaderboard' ? 'page' : undefined}>排行榜</a>
             </div>
+            {session && !studying && <button type="button" className="nav-continue"
+              aria-label={`继续上次学习：${currentVersion(session).lesson.title}`}
+              title={`继续上次学习：${currentVersion(session).lesson.title}`}
+              onClick={() => resume(session)}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8" />
+                <path d="M12 8v4l2.5 1.5" />
+              </svg>
+              <span>继续学习</span>
+            </button>}
             {user ? <AccountMenu user={user} path={path} search={search} loggingOut={loggingOut}
               onLogout={() => void logout()} />
               : <div className="guest-actions">
@@ -216,23 +227,6 @@ function App({ user }: { user: User | null }) {
             {['二次函数开口方向', '递归调用栈', '向量加法'].map((example) => <button key={example} type="button"
               className="example-chip" onClick={() => setQuestion(example)}>{example}</button>)}
           </div>
-          {session && <button type="button" className="continue-strip"
-            aria-label={`继续上次学习：${currentVersion(session).lesson.title}`}
-            onClick={() => resume(session)}>
-            <span className="continue-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="8" />
-                <path d="M12 8v4l2.5 1.5" />
-              </svg>
-            </span>
-            <span className="continue-copy">
-              <span className="continue-kicker">继续上次学习</span>
-              <strong>{currentVersion(session).lesson.title}</strong>
-            </span>
-            <span className="continue-meta">版本 {session.versions.length}</span>
-            <span className="continue-action">继续 <span aria-hidden="true">→</span></span>
-          </button>}
         </main>
       )}
     </>

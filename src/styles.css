@@ -357,14 +357,8 @@ a { color: inherit; }
 .home .question-card label { font-size: 16px; }
 .home .question-card textarea { min-height: clamp(160px, 22vh, 220px); padding: 16px; font-size: 16px; }
 .home .question-card .primary-button { min-height: 48px; padding: 0 22px; font-size: 15px; }
-.continue-strip { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 12px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 14px; background: #fffdf8; color: var(--ink); text-align: left; transition: border-color .18s ease, background .18s ease; }
-.continue-strip:hover { border-color: #b9cbbd; background: #fffefa; }
-.continue-icon { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 10px; background: #e7f0e6; color: var(--green); }
-.continue-copy { display: grid; flex: 1; min-width: 0; gap: 2px; }
-.continue-kicker { color: var(--green); font-size: 11px; font-weight: 700; letter-spacing: .06em; }
-.continue-copy strong { overflow: hidden; color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
-.continue-meta { flex: none; color: var(--muted); font-size: 12px; }
-.continue-action { flex: none; color: var(--green); font-size: 13px; font-weight: 650; }
+.nav-continue { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: #e7f0e6; color: var(--green); font: inherit; font-size: 13px; font-weight: 650; white-space: nowrap; }
+.nav-continue:hover { border-color: var(--green); background: #dcebe0; }
 @media (max-width: 760px) {
   .topbar-content { flex-wrap: wrap; padding: 12px 20px; }
   .main-nav { width: 100%; margin-left: 0; justify-content: space-between; gap: 10px; }
@@ -375,6 +369,6 @@ a { color: inherit; }
   .home-head h1 { font-size: clamp(32px, 8vw, 40px); }
   .home-examples { justify-content: flex-start; }
   .home .question-card textarea { min-height: 150px; }
-  .continue-meta { display: none; }
-  .continue-strip { gap: 10px; }
+  .nav-continue { width: 34px; padding: 0; justify-content: center; }
+  .nav-continue span { display: none; }
 }
