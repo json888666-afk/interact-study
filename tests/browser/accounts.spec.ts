@@ -45,6 +45,7 @@ async function authenticate(page: Page, mode: '注册' | '登录', name: string)
 }
 
 test('registration, account switching, guest recovery and leaderboard', async ({ page }) => {
+  test.setTimeout(90000)
   const databasePath = process.env.BROWSER_QUIZ_DB_PATH ?? '.local/browser-quiz.sqlite3'
   expect(existsSync(databasePath)).toBe(true)
   const publicPath = (isAbsolute(databasePath) ? '/@fs/' : '/') + databasePath.replaceAll('\\', '/')

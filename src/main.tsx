@@ -216,16 +216,23 @@ function App({ user }: { user: User | null }) {
             {['二次函数开口方向', '递归调用栈', '向量加法'].map((example) => <button key={example} type="button"
               className="example-chip" onClick={() => setQuestion(example)}>{example}</button>)}
           </div>
-          {session && <section className="continue-card">
-            <div className="continue-copy">
-              <p className="continue-kicker">继续上次学习</p>
-              <h2>{currentVersion(session).lesson.title}</h2>
-              <p>{currentVersion(session).lesson.summary}</p>
-            </div>
-            <button type="button" className="primary-button"
-              aria-label={`继续上次学习：${currentVersion(session).lesson.title}`}
-              onClick={() => resume(session)}>继续学习 <span aria-hidden="true">→</span></button>
-          </section>}
+          {session && <button type="button" className="continue-strip"
+            aria-label={`继续上次学习：${currentVersion(session).lesson.title}`}
+            onClick={() => resume(session)}>
+            <span className="continue-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="8" />
+                <path d="M12 8v4l2.5 1.5" />
+              </svg>
+            </span>
+            <span className="continue-copy">
+              <span className="continue-kicker">继续上次学习</span>
+              <strong>{currentVersion(session).lesson.title}</strong>
+            </span>
+            <span className="continue-meta">版本 {session.versions.length}</span>
+            <span className="continue-action">继续 <span aria-hidden="true">→</span></span>
+          </button>}
         </main>
       )}
     </>
