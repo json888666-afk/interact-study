@@ -145,6 +145,10 @@ export function LearningSettings({ user }: { user: User }) {
     <main className="page account-page">
       {busy && <GoalReviewDialog />}
       <form className="account-card" onSubmit={submit}>
+        <nav className="rank-return" aria-label="返回导航">
+          <button className="quiet-button" type="button" onClick={() => window.location.replace(returnTo)}>← 返回上一页</button>
+          <a href="/">返回首页</a>
+        </nav>
         <h1>{needsSetup ? '完善个人资料' : '个人设置'}</h1>
         {needsSetup && <p>学习目标通过审核后，即可开始个性化学习。</p>}
         <ProfileFields profile={user.profile} disabled={busy} />

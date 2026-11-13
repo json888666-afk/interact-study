@@ -132,6 +132,21 @@ test('saving settings from a lesson returns to the lesson', async ({ page }) => 
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
 })
 
+test('personal settings has back and home actions', async ({ page }) => {
+  const name = 'Settings_' + randomUUID().slice(0, 8)
+  await page.goto('/')
+  await authenticate(page, '注册', name)
+  await openFixtureLesson(page, 'recursion')
+  await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: '个人设置' }).click()
+  await expect(page.getByRole('heading', { name: '个人设置' })).toBeVisible()
+  await page.getByRole('button', { name: '← 返回上一页' }).click()
+  await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: '个人设置' }).click()
+  await page.getByRole('link', { name: '返回首页' }).click()
+  await expect(page.getByRole('heading', { name: '把问题动起来。' })).toBeVisible()
+})
+
 test('leaderboard and library return to the source page', async ({ page }) => {
   const name = 'Back_' + randomUUID().slice(0, 8)
   await page.goto('/')
