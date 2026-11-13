@@ -363,13 +363,13 @@
 >
 > 重点保存三条完整开发链：
 >
-> 1. **动态生成与版本修改**  
+> 1. **动态生成与版本修改**
 >    工具运行约束、代码错误、修复和回退验证。
 >
-> 2. **选择题生成与双模型审核**  
+> 2. **选择题生成与双模型审核**
 >    出题要求、审核发现的问题、答案修订和校验。
 >
-> 3. **题目申诉与缓存更新**  
+> 3. **题目申诉与缓存更新**
 >    题组作废、新题加载、旧成绩排除和异常恢复。
 >
 > 每条链关联 Git 提交和验证记录。对话无法导出时使用截图或录屏，敏感内容脱敏。
@@ -650,11 +650,11 @@
 - `pwsh {"command": "git -C \"E:\\传智杯\" status --short", "description": "List uncommitted files in repo"}`
 - `memory {"action": "add", "entries": [{"target": "daily", "content": "审计 E:\\传智杯 仓库：9 个模块级提交 + docs/ai-iterations 3 份 Prompt 快照 + 43 个待分批文件；评审「这些内容满足 2.1 图片要求吗」→ 基本满足，但有硬缺口（GitHub 推送超时兜底「只留本地+交接 zip」不满足「Public/评审可访问」），另 .gitignore 未覆盖 截图问题/ 与聊天压缩包。"}, {"target": "proj…`
 
-## 第 4 轮 — @E:\传智杯\.local\handoff\yansuanshi-agent-handoff.zip 
+## 第 4 轮 — @E:\传智杯\.local\handoff\yansuanshi-agent-handoff.zip
 
 **用户**
 
-> @E:\传智杯\.local\handoff\yansuanshi-agent-handoff.zip 
+> @E:\传智杯\.local\handoff\yansuanshi-agent-handoff.zip
 > 这是我和上一个agent关于这个比赛的对话。你理解一下，跟我讲一下
 
 **AI**
@@ -2924,7 +2924,7 @@
 >
 > ## 结论
 >
-> 同意你的判断：**生成 → 初审 → 把初审意见（含初审答案）作为 feedback → 再生成**，比单次生成更能快速修正题干/答案。  
+> 同意你的判断：**生成 → 初审 → 把初审意见（含初审答案）作为 feedback → 再生成**，比单次生成更能快速修正题干/答案。
 > 「保留题库题」的降级按你的意见去掉：3 次仍失败时，回到现有的失败/考试选择逻辑，不再只显示题库题。**需要接受的边界**：极端情况下模型 3 次都改不对，这次练习仍会失败（`exam_choice` 或 `failed`），而不是显示半套题。
 >
 > ## 目标与验收
