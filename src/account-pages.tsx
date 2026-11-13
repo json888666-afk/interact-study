@@ -144,8 +144,7 @@ export function LearningSettings({ user }: { user: User }) {
       {busy && <GoalReviewDialog />}
       <form className="account-card" onSubmit={submit}>
         <nav className="rank-return" aria-label="返回导航">
-          <button className="quiet-button" type="button" onClick={() => window.location.replace(returnTo)}>← 返回上一页</button>
-          <a href="/">返回首页</a>
+          <button className="rank-back" type="button" onClick={() => window.location.replace(returnTo)}>← {returnLabel(returnTo)}</button>
         </nav>
         <h1>{needsSetup ? '完善个人资料' : '个人设置'}</h1>
         {needsSetup && <p>学习目标通过审核后，即可开始个性化学习。</p>}
@@ -170,6 +169,14 @@ export function leaderboardLink() {
   const current = window.location.pathname + window.location.search
   const from = window.location.pathname === '/leaderboard' ? null : safeReturnLocation(current)
   return '/leaderboard' + (from ? '?from=' + encodeURIComponent(from) : '')
+}
+
+export function returnLabel(value: string) {
+  if (value.startsWith('/study')) return '返回学习'
+  if (value === '/leaderboard') return '返回排行榜'
+  if (value === '/exam-library') return '返回我的试卷'
+  if (value === '/profile') return '返回个人设置'
+  return '返回首页'
 }
 
 function returnFromLeaderboard() {
@@ -218,6 +225,7 @@ export function Leaderboard({ guest }: { guest: boolean }) {
   }, [page, attempt])
 
   const myPage = data?.me?.listed_page
+  const backTo = safeReturnLocation(new URLSearchParams(window.location.search).get('from')) ?? '/'
 
   return (
     <main className="page account-page">
@@ -227,8 +235,7 @@ export function Leaderboard({ guest }: { guest: boolean }) {
       }} />}
       <section className="account-card rankings">
         <nav className="rank-return" aria-label="返回导航">
-          <button className="quiet-button" type="button" onClick={returnFromLeaderboard}>← 返回上一页</button>
-          <a href="/">返回首页</a>
+          <button className="rank-back" type="button" onClick={returnFromLeaderboard}>← {returnLabel(backTo)}</button>
         </nav>
         <h1 ref={heading} tabIndex={-1}>排行榜</h1>
         <p>每通过一个学习会话可得 1 分。正确率达到 90% 即通过。</p>

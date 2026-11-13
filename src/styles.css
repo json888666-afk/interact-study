@@ -76,6 +76,8 @@ a { color: inherit; }
 .paper-detail p { white-space: pre-wrap; }
 .paper-repair { margin-block: 12px; }
 .rank-return { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; }
+.rank-back { display: inline-flex; align-items: center; margin-left: -8px; padding: 5px 8px; border: 0; border-radius: 7px; background: transparent; color: var(--green); font: inherit; font-size: 13px; font-weight: 600; }
+.rank-back:hover { color: #074d39; background: #e7f0e8; }
 .study { padding-top: 24px; width: min(100% - 40px, 1120px); }
 .resume-button { margin-top: 10px; overflow-wrap: anywhere; }
 .lesson-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); align-items: start; gap: 16px; }

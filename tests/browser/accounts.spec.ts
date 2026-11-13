@@ -111,7 +111,7 @@ test('guest leaderboard invitation supports browsing, registration and ordinary 
   await expect(page.getByRole('row', { name: /小张/ })).toBeVisible()
   await expect(invite).toHaveCount(0)
 
-  await page.getByRole('button', { name: '返回上一页' }).click()
+  await page.getByRole('button', { name: '← 返回首页' }).click()
   await expect(page.getByRole('link', { name: '我是新用户，开始学习' })).toBeVisible()
   await page.getByRole('link', { name: '排行榜' }).click()
   const name = 'Learner_' + randomUUID().slice(0, 8)
@@ -170,7 +170,7 @@ test('saving settings from a lesson returns to the lesson', async ({ page }) => 
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
 })
 
-test('personal settings has back and home actions', async ({ page }) => {
+test('personal settings has contextual back actions', async ({ page }) => {
   const name = 'Settings_' + randomUUID().slice(0, 8)
   await page.goto('/')
   await authenticate(page, '注册', name)
@@ -178,10 +178,12 @@ test('personal settings has back and home actions', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
   await openSettings(page)
   await expect(page.getByRole('heading', { name: '个人设置' })).toBeVisible()
-  await page.getByRole('button', { name: '← 返回上一页' }).click()
+  await page.getByRole('button', { name: '← 返回学习' }).click()
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: '可视化理论中心' }).click()
+  await expect(page.getByRole('heading', { name: '今天想弄懂什么？' })).toBeVisible()
   await openSettings(page)
-  await page.getByRole('link', { name: '返回首页' }).click()
+  await page.getByRole('button', { name: '← 返回首页' }).click()
   await expect(page.getByRole('heading', { name: '今天想弄懂什么？' })).toBeVisible()
 })
 
@@ -193,17 +195,17 @@ test('leaderboard and library return to the source page', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
   await page.getByRole('link', { name: '排行榜', exact: true }).click()
   await expect(page.getByRole('heading', { name: '排行榜', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '← 返回上一页' }).click()
+  await page.getByRole('button', { name: '← 返回学习' }).click()
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
   await page.getByRole('link', { name: '我的试卷' }).click()
   await expect(page.getByRole('heading', { name: '我的试卷' })).toBeVisible()
-  await page.getByRole('button', { name: '← 返回上一页' }).click()
+  await page.getByRole('button', { name: '← 返回学习' }).click()
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
   await page.getByRole('link', { name: '我的试卷' }).click()
   await expect(page.getByRole('heading', { name: '我的试卷' })).toBeVisible()
   await page.getByRole('link', { name: '排行榜', exact: true }).click()
   await expect(page.getByRole('heading', { name: '排行榜', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '← 返回上一页' }).click()
+  await page.getByRole('button', { name: '← 返回我的试卷' }).click()
   await expect(page.getByRole('heading', { name: '我的试卷' })).toBeVisible()
 })
 

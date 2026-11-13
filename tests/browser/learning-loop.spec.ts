@@ -97,7 +97,7 @@ test('asks with screenshot, resumes practice after refresh and returns to the sa
   await expect(page.getByText('答对 9 / 10 题 · 正确率 90%')).toBeVisible()
   await page.getByRole('link', { name: '查看排行榜' }).click()
   await page.getByRole('button', { name: '继续浏览' }).click()
-  await page.getByRole('button', { name: '返回上一页' }).click()
+  await page.getByRole('button', { name: '← 返回学习' }).click()
   await expect(page).toHaveURL(/\/study\?practice=/)
   await expect(page.getByRole('heading', { name: '练习通过' })).toBeVisible()
   await page.getByRole('button', { name: '返回学习' }).click()
