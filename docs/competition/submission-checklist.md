@@ -67,6 +67,7 @@
 | `07-selection-and-conversion.md` | 题库选题、开放题转换、10 次初审循环、标签编辑 |
 | `08-markdown-and-tag-edit.md` | 照片导入、Markdown/KaTeX、标签“保存丢失输入”修复 |
 | `09-profile-goals-and-settings.md` | 年级/目标个性化、目标审核放宽、设置返回来源页 |
+| `exports/deepseek-session-2026-11-13.md` | DeepSeek Harness 原始会话导出（脱敏，含上述三个迭代） |
 
 **至少 3 个核心迭代的完整 Prompt 链**：07、08、09 均包含：
 
@@ -75,10 +76,10 @@
 - 用户如何指出问题、引导修 Bug；
 - 最终落地的文件、提交、测试证据。
 
-**AI 工具导出补充**：
+**AI 对话导出**：
 
-- DeepSeek Harness 若支持会话导出，请把 07/08/09 对应的三段对话导出为 JSON/Markdown，放在 `docs/ai-iterations/exports/`；
-- 若不支持导出，请对以下三段对话**截图或录屏**（每段至少包含用户提问 + AI 修改建议 + 一次 Bug 修复）：
+- 已从 DSH 原生 session v4 导出脱敏 transcript：`docs/ai-iterations/exports/deepseek-session-2026-11-13.md`，保留用户/AI 文本消息与完整的 `exit_plan_mode` 方案，省略 reasoning、工具输出和系统运行时消息；`sk-...` 已脱敏。
+- 若评审还需要更直观的截图/录屏，建议补以下三段（每段至少包含用户提问 + AI 修改建议 + 一次 Bug 修复）：
   1. 「选出来的题目不符合知识点」→ 全量候选交 API；
   2. 「添加知识点不生效、删除生效」→ TagForm 修复；
   3. 「目标审核太严格 / 设置保存回首页」→ 放宽审核 + 返回来源页。

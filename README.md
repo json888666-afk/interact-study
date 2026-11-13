@@ -109,4 +109,5 @@ API 测试使用模拟上游。浏览器测试用确定性题材验证二次函�
 - [题库选题与开放题转换](docs/ai-iterations/07-selection-and-conversion.md) · 全量候选、10 次初审循环、标签
 - [Markdown 与标签编辑](docs/ai-iterations/08-markdown-and-tag-edit.md) · 可读性修复与「保存丢失输入」
 - [年级、目标与设置](docs/ai-iterations/09-profile-goals-and-settings.md) · 个性化、审核放宽、返回来源页
+- [DeepSeek 会话导出（脱敏）](docs/ai-iterations/exports/deepseek-session-2026-11-13.md) · 原始用户/AI 对话与完整 exit_plan_mode 方案
 - [竞赛提交清单](docs/competition/submission-checklist.md) · 仓库、提交、Prompt 链自查
