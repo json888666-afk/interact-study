@@ -416,9 +416,9 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
     window.requestAnimationFrame(() => document.getElementById('paper-question')?.scrollIntoView({ block: 'start' }))
   }
 
-  function questionPager(live = false) {
+  function questionPager() {
     return <div className="paper-pager" role="group" aria-label="题目分页">
-      <span aria-live={live ? 'polite' : undefined}>第 {position + 1} / {questionCount} 题</span>
+      <span aria-live="polite">第 {position + 1} / {questionCount} 题</span>
       <div className="quiz-actions">
         <button className="quiet-button" type="button" disabled={pagingLocked || position === 0}
           onClick={() => showQuestion(position - 1)}>← 上一题</button>
@@ -477,7 +477,6 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
         {repair === 'paper' ? <RepairForm target="paper" busy={busy} onCancel={() => setRepair(null)} onSubmit={submitRepair} />
           : <button className="quiet-button" type="button" disabled={busy} onClick={() => { setRepair('paper'); setEditing(null) }}>重新识别</button>}
         {!questionCount ? <p>暂无题目。</p> : <>
-          {questionPager(true)}
           <ol start={position + 1} id="paper-question" className="paper-question-list">
             {question && <li key={question.id}>
               {tagging === question.id
