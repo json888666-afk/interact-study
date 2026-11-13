@@ -74,6 +74,8 @@ a { color: inherit; }
 .paper-list, .paper-detail ol { padding-inline-start: 20px; }
 .paper-list li, .paper-detail li { margin-block: 12px; overflow-wrap: anywhere; }
 .paper-detail p { white-space: pre-wrap; }
+.paper-detail { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.paper-detail-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 4px; }
 .paper-detail .paper-question-list { padding-inline-start: 0; list-style: none; }
 .paper-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafcf8; }
 .paper-pager > span { color: var(--muted); font-size: 13px; font-weight: 600; }

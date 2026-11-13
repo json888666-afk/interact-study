@@ -242,7 +242,9 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
   }, [active?.id, active?.questions.length])
 
   function updatePaper(paper: PaperDetail) {
-    setPapers((current) => current.map((item) => item.id === paper.id ? paper : item))
+    setPapers((current) => current.some((item) => item.id === paper.id)
+      ? current.map((item) => item.id === paper.id ? paper : item)
+      : [paper, ...current])
     setActive(paper)
   }
 
@@ -428,6 +430,54 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
     </div>
   }
 
+  function paperDetail() {
+    if (!active) return null
+    return <section className="paper-detail" aria-label="试卷题目">
+      <div className="paper-detail-toolbar">
+        {repair === 'paper' ? <RepairForm target="paper" busy={busy} onCancel={() => setRepair(null)} onSubmit={submitRepair} />
+          : <button className="quiet-button" type="button" disabled={busy} onClick={() => { setRepair('paper'); setEditing(null) }}>重新识别</button>}
+      </div>
+      {!questionCount ? <p>暂无题目。</p> : <>
+        <ol start={position + 1} id="paper-question" className="paper-question-list">
+          {question && <li key={question.id}>
+            {tagging === question.id
+              ? <TagForm question={question} busy={busy}
+                  suggestions={[...new Set(active.questions.flatMap((item) => item.tags))]
+                    .filter((tag) => !question.tags.includes(tag))}
+                  onCancel={() => setTagging(null)}
+                  onSubmit={(tags) => void saveTags(question.id, tags)} />
+              : editing === question.id
+                ? <EditForm question={question} busy={busy} onCancel={() => setEditing(null)}
+                    onSubmit={(data) => void saveEdit(question.id, data)} />
+                : <>
+                  <Markdown className="question-stem">{stemSource(question)}</Markdown>
+                  {!!question.options.length && <ol type="A">{question.options.map((option, i) =>
+                    <li key={i}><InlineMarkdown>{option}</InlineMarkdown></li>)}</ol>}
+                  {!!question.correct.length && <p className="subject">答案：{question.correct.map((i) => String.fromCharCode(65 + i)).join('、')}</p>}
+                  <p className="subject">{question.file} · 第 {question.page} 页 · {questionStatus(question)}</p>
+                  {!question.confirmed && <p className="subject">{question.reason}</p>}
+                  <div className="quiz-actions">
+                    <button className="quiet-button" type="button" disabled={busy}
+                      onClick={() => { setEditing(question.id); setRepair(null); setTagging(null) }}>编辑</button>
+                    <button className="quiet-button" type="button" disabled={busy}
+                      onClick={() => { setTagging(question.id); setEditing(null); setRepair(null) }}>编辑知识点</button>
+                    {!question.confirmed && <button className="primary-button" type="button" disabled={busy}
+                      onClick={() => void confirmQuestion(question.id)}>确认入库</button>}
+                    {!question.confirmed && (repair === question.id
+                      ? <RepairForm target={question.id} busy={busy} onCancel={() => setRepair(null)} onSubmit={submitRepair} />
+                      : <button className="quiet-button" type="button" disabled={busy}
+                          onClick={() => { setRepair(question.id); setEditing(null); setTagging(null) }}>重新提交这道题</button>)}
+                  </div>
+                </>}
+            <div className="quiz-actions">{question.tags.map((tag) =>
+              <a key={tag} href={'/?question=' + encodeURIComponent(`请讲解${tag}`)}>学习{tag}</a>)}</div>
+          </li>}
+        </ol>
+        {questionPager()}
+      </>}
+    </section>
+  }
+
   return <main className="page account-page exam-library">
     <section className="account-card">
       <nav className="rank-return" aria-label="返回导航">
@@ -469,52 +519,8 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
           <button className="quiet-button" type="button" onClick={() => setRemoveId(null)}>取消</button>
           <button className="quiet-button" type="button" disabled={busy} onClick={() => void removePaper(paper.id)}>确认移除</button>
         </div> : <button className="quiet-button" type="button" disabled={busy} onClick={() => setRemoveId(paper.id)}>移除</button>}
+        {active?.id === paper.id && paperDetail()}
       </li>)}</ul>
-      {active && <section className="paper-detail" aria-label="试卷题目">
-        <h3>{paperTitle(active)}</h3>
-        <p className="subject">{active.filenames.join('、')}</p>
-        <p className="subject">{paperCounts(active)}</p>
-        {repair === 'paper' ? <RepairForm target="paper" busy={busy} onCancel={() => setRepair(null)} onSubmit={submitRepair} />
-          : <button className="quiet-button" type="button" disabled={busy} onClick={() => { setRepair('paper'); setEditing(null) }}>重新识别</button>}
-        {!questionCount ? <p>暂无题目。</p> : <>
-          <ol start={position + 1} id="paper-question" className="paper-question-list">
-            {question && <li key={question.id}>
-              {tagging === question.id
-                ? <TagForm question={question} busy={busy}
-                    suggestions={[...new Set(active.questions.flatMap((item) => item.tags))]
-                      .filter((tag) => !question.tags.includes(tag))}
-                    onCancel={() => setTagging(null)}
-                    onSubmit={(tags) => void saveTags(question.id, tags)} />
-                : editing === question.id
-                  ? <EditForm question={question} busy={busy} onCancel={() => setEditing(null)}
-                      onSubmit={(data) => void saveEdit(question.id, data)} />
-                  : <>
-                    <Markdown className="question-stem">{stemSource(question)}</Markdown>
-                    {!!question.options.length && <ol type="A">{question.options.map((option, i) =>
-                      <li key={i}><InlineMarkdown>{option}</InlineMarkdown></li>)}</ol>}
-                    {!!question.correct.length && <p className="subject">答案：{question.correct.map((i) => String.fromCharCode(65 + i)).join('、')}</p>}
-                    <p className="subject">{question.file} · 第 {question.page} 页 · {questionStatus(question)}</p>
-                    {!question.confirmed && <p className="subject">{question.reason}</p>}
-                    <div className="quiz-actions">
-                      <button className="quiet-button" type="button" disabled={busy}
-                        onClick={() => { setEditing(question.id); setRepair(null); setTagging(null) }}>编辑</button>
-                      <button className="quiet-button" type="button" disabled={busy}
-                        onClick={() => { setTagging(question.id); setEditing(null); setRepair(null) }}>编辑知识点</button>
-                      {!question.confirmed && <button className="primary-button" type="button" disabled={busy}
-                        onClick={() => void confirmQuestion(question.id)}>确认入库</button>}
-                      {!question.confirmed && (repair === question.id
-                        ? <RepairForm target={question.id} busy={busy} onCancel={() => setRepair(null)} onSubmit={submitRepair} />
-                        : <button className="quiet-button" type="button" disabled={busy}
-                            onClick={() => { setRepair(question.id); setEditing(null); setTagging(null) }}>重新提交这道题</button>)}
-                    </div>
-                  </>}
-              <div className="quiz-actions">{question.tags.map((tag) =>
-                <a key={tag} href={'/?question=' + encodeURIComponent(`请讲解${tag}`)}>学习{tag}</a>)}</div>
-            </li>}
-          </ol>
-          {questionPager()}
-        </>}
-      </section>}
     </section>}
   </main>
 }
