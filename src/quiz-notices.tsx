@@ -74,10 +74,15 @@ export function CelebrationNotice({ action, variant = 'stars', title = '知识�
       {variant === 'badge' ? <>
         <div className="quiz-badge-scene" aria-hidden="true">
           <span className="quiz-badge-halo" />
+          <span className="quiz-badge-ribbons">
+            <i className="quiz-badge-ribbon" />
+            <i className="quiz-badge-ribbon" />
+          </span>
           <span className="quiz-badge">
             <svg viewBox="0 0 32 32" width="34" height="34" fill="none" stroke="currentColor"
-              strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 16.5 13 22 25 10" />
+              strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 8.2c4-1.5 7.4-.4 11 2.2 3.6-2.6 7-3.7 11-2.2v15.6c-4-1.5-7.4-.4-11 2.2-3.6-2.6-7-3.7-11-2.2z" />
+              <path d="M16 10.4v15.6" />
             </svg>
           </span>
         </div>

@@ -136,16 +136,25 @@ a { color: inherit; }
 .quiz-confetti i:nth-child(7) { --scatter-x: 94px; --scatter-y: 70px; --spin: 120deg; }
 .quiz-confetti i:nth-child(8) { --scatter-x: 112px; --scatter-y: -12px; --spin: -125deg; }
 .quiz-confetti i:nth-child(9) { --scatter-x: 140px; --scatter-y: 52px; --spin: 220deg; }
-.quiz-badge-scene { position: relative; display: grid; place-items: center; height: 100px; margin: 4px 0 6px; }
-.quiz-badge-halo { position: absolute; width: 76px; height: 76px; border: 2px solid #0c654b33; border-radius: 50%; animation: quiz-badge-halo 900ms ease-out both; }
-.quiz-badge { position: relative; display: grid; place-items: center; width: 76px; height: 76px; overflow: hidden; border-radius: 50%; background: var(--green); color: #fff; box-shadow: 0 0 0 8px #0c654b14, 0 12px 30px #0c654b33; animation: quiz-badge-light 720ms 100ms both; }
+.quiz-badge-scene { position: relative; display: grid; place-items: center; height: 138px; margin: 0 0 2px; }
+.quiz-badge-halo { position: absolute; width: 84px; height: 84px; border: 2px solid #d8b25d55; border-radius: 50%; animation: quiz-badge-halo 900ms ease-out both; }
+.quiz-badge-ribbons { position: absolute; top: 92px; left: 50%; z-index: 0; display: flex; gap: 7px; transform: translateX(-50%); }
+.quiz-badge-ribbon { display: block; width: 17px; height: 38px; background: linear-gradient(180deg, #0c654b, #0a4b3a); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%); transform-origin: top center; animation: quiz-badge-ribbon 520ms 320ms both; }
+.quiz-badge-ribbon:first-child { --ribbon-angle: -8deg; }
+.quiz-badge-ribbon:last-child { --ribbon-angle: 8deg; }
+.quiz-badge { position: relative; z-index: 1; display: grid; place-items: center; width: 84px; height: 84px; box-sizing: border-box; overflow: hidden; border: 4px solid #d8b25d; border-radius: 50%; background: var(--green); color: #fff; box-shadow: 0 0 0 6px #d8b25d22, 0 12px 30px #0c654b33; animation: quiz-badge-light 720ms 100ms both; }
+.quiz-badge::before { content: ""; position: absolute; inset: 3px; border: 1px solid #ffffff33; border-radius: 50%; pointer-events: none; }
 .quiz-badge::after { content: ""; position: absolute; inset: -40% -80%; background: linear-gradient(110deg, transparent 40%, #ffffff80 50%, transparent 60%); transform: translateX(-60%) rotate(8deg); animation: quiz-badge-sheen 700ms 520ms ease-out both; }
 .quiz-pass-badge { width: fit-content; margin: 6px auto 12px; padding: 4px 12px; border: 1px solid #cfe3d4; border-radius: 999px; background: #e7f0e6; color: var(--green); font-size: 12px; font-weight: 700; letter-spacing: .04em; animation: quiz-badge-pop 420ms 500ms both; }
 .quiz-celebration-dialog .quiz-pass-badge { margin: 6px auto 12px; }
 @keyframes quiz-badge-light {
-  0% { opacity: .25; transform: scale(.84) rotate(-5deg); background: #dce6dc; color: #9aae9e; box-shadow: none; }
+  0% { opacity: .25; transform: scale(.84) rotate(-5deg); filter: grayscale(1); box-shadow: none; }
   55% { opacity: 1; transform: scale(1.08) rotate(1deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0); background: var(--green); color: #fff; box-shadow: 0 0 0 8px #0c654b14, 0 12px 30px #0c654b33; }
+  100% { opacity: 1; transform: scale(1) rotate(0); filter: grayscale(0); box-shadow: 0 0 0 6px #d8b25d22, 0 12px 30px #0c654b33; }
+}
+@keyframes quiz-badge-ribbon {
+  0% { opacity: 0; transform: rotate(var(--ribbon-angle)) translateY(-8px) scaleY(.3); }
+  100% { opacity: 1; transform: rotate(var(--ribbon-angle)) translateY(0) scaleY(1); }
 }
 @keyframes quiz-badge-halo {
   0% { opacity: .55; transform: scale(.7); }
@@ -173,7 +182,7 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .quiz-stars span { animation: none; }
   .quiz-confetti { display: none; }
-  .quiz-badge, .quiz-badge-halo, .quiz-badge::after, .quiz-pass-badge { animation: none; }
+  .quiz-badge, .quiz-badge-halo, .quiz-badge-ribbon, .quiz-badge::after, .quiz-pass-badge { animation: none; }
 }
 .objection-form textarea { display: block; width: 100%; min-height: 80px; margin: 7px 0; padding: 8px; }
 .workspace-panel { padding: 16px; background: white; border: 1px solid var(--line); border-radius: 16px; }
