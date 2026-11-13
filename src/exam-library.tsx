@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { safeReturnLocation } from './account-pages'
 import { learningRequest } from './learning-api'
 import { LoadingProgress } from './loading-progress'
 import { InlineMarkdown, Markdown } from './markdown'
@@ -217,6 +218,11 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
   const [repair, setRepair] = useState<'paper' | number | null>(null)
   const [editing, setEditing] = useState<number | null>(null)
   const [tagging, setTagging] = useState<number | null>(null)
+  const from = safeReturnLocation(new URLSearchParams(window.location.search).get('from'))
+
+  function goBack() {
+    window.location.replace(from && from !== '/exam-library' ? from : '/')
+  }
 
   useEffect(() => {
     if (!signedIn) return
@@ -388,7 +394,10 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
 
   return <main className="page account-page exam-library">
     <section className="account-card">
-      <a href="/">← 返回首页</a>
+      <nav className="rank-return" aria-label="返回导航">
+        <button className="quiet-button" type="button" onClick={goBack}>← 返回上一页</button>
+        <a href="/">返回首页</a>
+      </nav>
       <h1>我的试卷</h1>
       {!signedIn ? <p>登录后即可导入自己的试卷。 <a href="/login">登录</a></p> : <form onSubmit={submit}>
         <fieldset disabled={busy}>

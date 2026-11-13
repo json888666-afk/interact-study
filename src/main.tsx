@@ -132,8 +132,8 @@ function App({ user }: { user: User | null }) {
             <a href={leaderboardLink()}>排行榜</a>
             {user ? <>
               <span className="account-name">{user.username}</span>
-              <a href="/exam-library">我的试卷</a>
-              <a href={'/profile?from=' + encodeURIComponent(path + window.location.search)}>学习设置</a>
+              <a href={'/exam-library?from=' + encodeURIComponent(path + window.location.search)}>我的试卷</a>
+              <a href={'/profile?from=' + encodeURIComponent(path + window.location.search)}>个人设置</a>
               <button type="button" className="quiet-button" disabled={loggingOut} onClick={() => void logout()}>退出</button>
             </> : <>
               <a href={authLink('login', path === '/leaderboard')}>登录</a>
@@ -179,7 +179,7 @@ function App({ user }: { user: User | null }) {
               : '输入一个数学或计算机问题，生成可以亲手操作的交互演示。'}</p>
           </section>
           {user?.profile
-            ? <p className="profile-hint">当前学习设置：{user.profile.education_stage} · {user.profile.goal}
+            ? <p className="profile-hint">当前个人设置：{user.profile.education_stage} · {user.profile.goal}
                 <a href={'/profile?from=' + encodeURIComponent(path)}>修改</a></p>
             : <p className="profile-hint">登录并设置学习阶段与目标后，可获得更贴合的内容。</p>}
           <form className="question-card" onSubmit={submit}>

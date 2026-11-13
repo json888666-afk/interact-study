@@ -60,7 +60,7 @@ function ProfileFields({ profile, disabled }: { profile?: Profile | null; disabl
     <textarea id="learning-goal" name="goal" rows={3} maxLength={300} disabled={disabled} required
       defaultValue={profile?.goal ?? ''} placeholder="例如，本周学会用图像判断二次函数的开口和顶点。"
       aria-describedby="learning-goal-help" />
-    <p className="subject" id="learning-goal-help">用于调整讲解和练习难度；只有写明具体考试时才会检索该考试真题，之后可在学习设置修改。</p>
+    <p className="subject" id="learning-goal-help">用于调整讲解和练习难度；只有写明具体考试时才会检索该考试真题，之后可在个人设置修改。</p>
   </>
 }
 
@@ -133,7 +133,7 @@ export function LearningSettings({ user }: { user: User }) {
     try {
       const profile = readProfile(new FormData(event.currentTarget))
       const result = await authRequest('profile', profile)
-      if (!result.user) throw new Error('请重新登录后保存学习设置。')
+      if (!result.user) throw new Error('请重新登录后保存个人设置。')
       finishAuth(returnTo)
     } catch (error) {
       setError(error instanceof Error ? error.message : '保存失败，请重试。')
@@ -145,7 +145,7 @@ export function LearningSettings({ user }: { user: User }) {
     <main className="page account-page">
       {busy && <GoalReviewDialog />}
       <form className="account-card" onSubmit={submit}>
-        <h1>{needsSetup ? '完善学习资料' : '学习设置'}</h1>
+        <h1>{needsSetup ? '完善个人资料' : '个人设置'}</h1>
         {needsSetup && <p>学习目标通过审核后，即可开始个性化学习。</p>}
         <ProfileFields profile={user.profile} disabled={busy} />
         {error && <p role="alert">{error}</p>}
@@ -155,27 +155,24 @@ export function LearningSettings({ user }: { user: User }) {
   )
 }
 
-function safeReturnLocation(value: string | null) {
+export function safeReturnLocation(value: string | null) {
   if (!value) return null
   const [path, query] = value.split('?')
-  if (path === '/' || path === '/profile') return path
+  if (path === '/' || path === '/profile' || path === '/exam-library' || path === '/leaderboard') return path
   if (path !== '/study') return null
   const practice = new URLSearchParams(query).get('practice')
   return practice ? '/study?practice=' + encodeURIComponent(practice) : '/study'
 }
 
 export function leaderboardLink() {
-  const from = safeReturnLocation(window.location.pathname + window.location.search)
+  const current = window.location.pathname + window.location.search
+  const from = window.location.pathname === '/leaderboard' ? null : safeReturnLocation(current)
   return '/leaderboard' + (from ? '?from=' + encodeURIComponent(from) : '')
 }
 
 function returnFromLeaderboard() {
   const from = safeReturnLocation(new URLSearchParams(window.location.search).get('from'))
-  if (from && document.referrer === new URL(from, window.location.origin).href && history.length > 1) {
-    history.back()
-  } else {
-    window.location.replace(from ?? '/')
-  }
+  window.location.replace(from && from !== '/leaderboard' ? from : '/')
 }
 
 type Rank = { username: string; points: number; rank: number }
