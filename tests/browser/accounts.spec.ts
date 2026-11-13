@@ -16,9 +16,19 @@ async function completeOnboarding(page: Page, stage = '高中', goal = '用图�
   await page.getByRole('button', { name: '开始学习' }).click()
 }
 
+async function openSettings(page: Page) {
+  await page.getByRole('button', { name: /账户菜单/ }).click()
+  await page.getByRole('menuitem', { name: '个人设置' }).click()
+}
+
+async function logout(page: Page) {
+  await page.getByRole('button', { name: /账户菜单/ }).click()
+  await page.getByRole('menuitem', { name: '退出' }).click()
+}
+
 async function authenticate(page: Page, mode: '注册' | '登录', name: string) {
   await Promise.race([
-    page.getByRole('navigation', { name: '账户导航' }).waitFor({ timeout: 5000 }).catch(() => undefined),
+    page.getByRole('navigation', { name: '主导航' }).waitFor({ timeout: 5000 }).catch(() => undefined),
     page.getByRole('button', { name: '先逛逛' }).waitFor({ timeout: 5000 }).catch(() => undefined),
   ])
   const guest = page.getByRole('button', { name: '先逛逛' })
@@ -26,12 +36,12 @@ async function authenticate(page: Page, mode: '注册' | '登录', name: string)
     await guest.click()
     await page.getByLabel('你想弄懂什么？').waitFor({ timeout: 10000 })
   }
-  await page.getByRole('navigation', { name: '账户导航' }).getByRole('link', { name: mode }).click()
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: mode }).click()
   await page.getByLabel('用户名').fill(name)
   await page.getByLabel('密码', { exact: true }).fill(password)
   await page.getByRole('button', { name: mode, exact: true }).click()
   if (mode === '注册') await completeOnboarding(page)
-  await expect(page.getByRole('navigation', { name: '账户导航' }).getByText(name, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: `账户菜单：${name}` })).toBeVisible()
 }
 
 test('registration, account switching, guest recovery and leaderboard', async ({ page }) => {
@@ -45,20 +55,20 @@ test('registration, account switching, guest recovery and leaderboard', async ({
   await expect(page.getByRole('heading', { name: '二次函数参数', exact: true })).toBeVisible()
   await expect(page.getByText('通用模式 · 登录后可按年级/目标定制')).toBeVisible()
   await authenticate(page, '注册', alice)
-  await expect(page.getByText('你还没有开始提问，快来探索知识吧！')).toBeVisible()
-  await expect(page.getByText('当前个人设置：高中 · 用图像理解二次函数')).toBeVisible()
+  await expect(page.getByText(new RegExp(`(早上好|下午好|晚上好)，${alice}`))).toBeVisible()
+  await expect(page.getByRole('button', { name: `账户菜单：${alice}` })).toBeVisible()
   await expect(page.getByRole('button', { name: /继续上次学习/ })).toHaveCount(0)
   await openFixtureLesson(page, 'recursion')
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
   await expect(page.getByText('按 高中 · 用图像理解二次函数 生成')).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '退出' }).click()
+  await logout(page)
   await page.getByRole('button', { name: '先逛逛' }).click()
   await expect(page.getByRole('button', { name: /继续上次学习.*二次函数参数/ })).toBeVisible()
   await authenticate(page, '注册', bob)
   await expect(page.getByRole('button', { name: /继续上次学习/ })).toHaveCount(0)
-  await page.getByRole('button', { name: '退出' }).click()
+  await logout(page)
   await expect(page.getByRole('button', { name: '先逛逛' })).toBeVisible()
   await authenticate(page, '登录', alice)
   await expect(page.getByRole('button', { name: /继续上次学习.*递归调用栈/ })).toBeVisible()
@@ -100,17 +110,17 @@ test('guest leaderboard invitation supports browsing, registration and ordinary 
   await expect(page.getByRole('heading', { name: '排行榜' })).toBeVisible()
   await expect(invite).toHaveCount(0)
 
-  await page.getByRole('link', { name: '个人设置' }).click()
+  await openSettings(page)
   await expect(page.getByLabel('学习阶段')).toHaveValue('初中')
   await page.getByLabel('学习阶段').selectOption('本科')
   await page.getByLabel('近期学习目标').fill('理解函数的变化率')
   await page.getByRole('button', { name: '保存个人设置' }).click()
   await expect(page).toHaveURL(/\/leaderboard$/)
-  await page.getByRole('link', { name: '个人设置' }).click()
+  await openSettings(page)
   await expect(page.getByLabel('学习阶段')).toHaveValue('本科')
   await expect(page.getByLabel('近期学习目标')).toHaveValue('理解函数的变化率')
 
-  await page.getByRole('button', { name: '退出' }).click()
+  await logout(page)
   await page.getByRole('link', { name: '排行榜' }).click()
   await invite.getByRole('link', { name: '登录' }).click()
   await page.getByLabel('用户名').fill(name)
@@ -140,7 +150,7 @@ test('saving settings from a lesson returns to the lesson', async ({ page }) => 
   await authenticate(page, '注册', name)
   await openFixtureLesson(page, 'recursion')
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
-  await page.getByRole('link', { name: '个人设置' }).click()
+  await openSettings(page)
   await expect(page.getByRole('heading', { name: '个人设置' })).toBeVisible()
   await page.getByRole('button', { name: '保存个人设置' }).click()
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
@@ -152,13 +162,13 @@ test('personal settings has back and home actions', async ({ page }) => {
   await authenticate(page, '注册', name)
   await openFixtureLesson(page, 'recursion')
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
-  await page.getByRole('link', { name: '个人设置' }).click()
+  await openSettings(page)
   await expect(page.getByRole('heading', { name: '个人设置' })).toBeVisible()
   await page.getByRole('button', { name: '← 返回上一页' }).click()
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
-  await page.getByRole('link', { name: '个人设置' }).click()
+  await openSettings(page)
   await page.getByRole('link', { name: '返回首页' }).click()
-  await expect(page.getByRole('heading', { name: '把问题动起来。' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '今天想弄懂什么？' })).toBeVisible()
 })
 
 test('leaderboard and library return to the source page', async ({ page }) => {

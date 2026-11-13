@@ -325,3 +325,46 @@ a { color: inherit; }
 @keyframes celebration-ring { 0% { transform: scale(.82); opacity: .7; } 100% { transform: scale(1.18); opacity: 0; } }
 @keyframes celebration-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
 @media (prefers-reduced-motion: reduce) { .celebration-ring, .celebration-spark { animation: none; } }
+
+/* Main navigation and account menu */
+.main-nav { display: flex; align-items: center; gap: 18px; margin-left: auto; }
+.main-links { display: flex; align-items: center; gap: 18px; font-size: 14px; }
+.main-links a { position: relative; padding: 6px 0; color: var(--muted); text-decoration: none; }
+.main-links a:hover { color: var(--green); }
+.main-links a[aria-current="page"] { color: var(--green); font-weight: 650; }
+.main-links a[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--green); }
+.guest-actions { display: flex; align-items: center; gap: 14px; font-size: 14px; }
+.guest-actions a { color: var(--green); text-decoration: none; }
+.account-menu { position: relative; }
+.avatar-button { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: #e7f0e6; color: var(--green); font: inherit; font-size: 14px; font-weight: 750; }
+.avatar-button:hover { border-color: var(--green); background: #dcebe0; }
+.account-dropdown { position: absolute; top: calc(100% + 8px); right: 0; z-index: 20; display: grid; gap: 2px; width: min(260px, calc(100vw - 32px)); padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: #fffdf8; box-shadow: 0 18px 40px #203d2418; }
+.account-summary { display: grid; gap: 2px; margin-bottom: 4px; padding: 8px 10px 10px; border-bottom: 1px solid var(--line); }
+.account-summary strong { font-size: 14px; }
+.account-summary span { color: var(--muted); font-size: 12px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-dropdown a, .account-dropdown button { display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; text-align: left; text-decoration: none; cursor: pointer; }
+.account-dropdown a:hover, .account-dropdown button:hover { background: #eef4ea; color: var(--green); }
+.account-dropdown button[role="menuitem"] { color: #a33a2c; }
+
+/* Learning home */
+.home { width: min(100% - 40px, 980px); padding-top: 44px; }
+.home-head { margin-bottom: 22px; }
+.home-greeting { margin: 0; color: var(--green); font-size: 13px; font-weight: 650; letter-spacing: .02em; }
+.home-head h1 { margin: 6px 0 8px; font-size: clamp(32px, 4.4vw, 48px); letter-spacing: -.05em; line-height: 1.15; }
+.home-sub { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.home-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+.continue-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 20px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px; background: #fffdf8; box-shadow: 0 10px 30px #203d2410; }
+.continue-copy { min-width: 0; }
+.continue-kicker { margin: 0; color: var(--green); font-size: 12px; font-weight: 700; letter-spacing: .06em; }
+.continue-card h2 { margin: 3px 0 5px; font-size: 18px; line-height: 1.35; }
+.continue-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.continue-card .primary-button { flex: none; }
+@media (max-width: 760px) {
+  .topbar-content { flex-wrap: wrap; padding: 12px 20px; }
+  .main-nav { width: 100%; margin-left: 0; justify-content: space-between; gap: 10px; }
+  .main-links { gap: 14px; font-size: 13px; }
+  .home { padding-top: 28px; }
+  .home-head h1 { font-size: clamp(30px, 8vw, 40px); }
+  .continue-card { flex-direction: column; align-items: stretch; }
+  .continue-card .primary-button { width: 100%; }
+}

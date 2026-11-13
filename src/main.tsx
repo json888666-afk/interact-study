@@ -122,6 +122,8 @@ function App({ user }: { user: User | null }) {
   const path = window.location.pathname
   const search = window.location.search
   const params = new URLSearchParams(search)
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好'
   const guestEntry = (() => {
     try { return sessionStorage.getItem(GUEST_KEY) === '1' } catch { return false }
   })()
@@ -148,17 +150,19 @@ function App({ user }: { user: User | null }) {
           }}>
             <span className="brand-mark" aria-hidden="true">∿</span>可视化理论中心
           </a>
-          <nav className="account-nav" aria-label="账户导航">
-            <a href={leaderboardLink()}>排行榜</a>
-            {user ? <>
-              <span className="account-name">{user.username}</span>
-              <a href={'/exam-library?from=' + encodeURIComponent(path + window.location.search)}>我的试卷</a>
-              <a href={'/profile?from=' + encodeURIComponent(path + window.location.search)}>个人设置</a>
-              <button type="button" className="quiet-button" disabled={loggingOut} onClick={() => void logout()}>退出</button>
-            </> : <>
-              <a href={authLink('login', path === '/leaderboard')}>登录</a>
-              <a href={authLink('register', path === '/leaderboard')}>注册</a>
-            </>}
+          <nav className="main-nav" aria-label="主导航">
+            <div className="main-links">
+              <a href="/" aria-current={path === '/' || path === '/study' ? 'page' : undefined}>学习</a>
+              <a href={'/exam-library?from=' + encodeURIComponent(path + window.location.search)}
+                aria-current={path === '/exam-library' ? 'page' : undefined}>我的试卷</a>
+              <a href={leaderboardLink()} aria-current={path === '/leaderboard' ? 'page' : undefined}>排行榜</a>
+            </div>
+            {user ? <AccountMenu user={user} path={path} search={search} loggingOut={loggingOut}
+              onLogout={() => void logout()} />
+              : <div className="guest-actions">
+                <a href={authLink('login', path === '/leaderboard')}>登录</a>
+                <a href={authLink('register', path === '/leaderboard')}>注册</a>
+              </div>}
           </nav>
         </div>
       </header>
@@ -193,15 +197,11 @@ function App({ user }: { user: User | null }) {
         </main>
       ) : (
         <main className="home page">
-          <section className="hero" aria-labelledby="home-title">
-            <h1 id="home-title">把问题<span>动起来。</span></h1>
-            <p>{user && !session ? '你还没有开始提问，快来探索知识吧！'
-              : '输入一个数学或计算机问题，生成可以亲手操作的交互演示。'}</p>
+          <section className="home-head" aria-labelledby="home-title">
+            <p className="home-greeting">{user ? `${greeting}，${user.username}` : '你好，访客'}</p>
+            <h1 id="home-title">今天想弄懂什么？</h1>
+            <p className="home-sub">输入一个问题，生成可以亲手拖动的教学页；看懂之后再练两道题。</p>
           </section>
-          {user?.profile
-            ? <p className="profile-hint">当前个人设置：{user.profile.education_stage} · {user.profile.goal}
-                <a href={'/profile?from=' + encodeURIComponent(path)}>修改</a></p>
-            : <p className="profile-hint">登录并设置学习阶段与目标后，可获得更贴合的内容。</p>}
           <form className="question-card" onSubmit={submit}>
             <label htmlFor="question">你想弄懂什么？</label>
             <textarea id="question" value={question} onChange={(event) => setQuestion(event.target.value)}
@@ -211,13 +211,70 @@ function App({ user }: { user: User | null }) {
               <button className="primary-button" type="submit" disabled={!question.trim()}>生成演示 <span aria-hidden="true">→</span></button>
             </div>
           </form>
-          {session && <button type="button" className="quiet-button resume-button" onClick={() => resume(session)}>
-            继续上次学习 · {currentVersion(session).lesson.title}
-          </button>}
+          <div className="home-examples" aria-label="示例问题">
+            <span>试试：</span>
+            {['二次函数开口方向', '递归调用栈', '向量加法'].map((example) => <button key={example} type="button"
+              className="example-chip" onClick={() => setQuestion(example)}>{example}</button>)}
+          </div>
+          {session && <section className="continue-card">
+            <div className="continue-copy">
+              <p className="continue-kicker">继续上次学习</p>
+              <h2>{currentVersion(session).lesson.title}</h2>
+              <p>{currentVersion(session).lesson.summary}</p>
+            </div>
+            <button type="button" className="primary-button"
+              aria-label={`继续上次学习：${currentVersion(session).lesson.title}`}
+              onClick={() => resume(session)}>继续学习 <span aria-hidden="true">→</span></button>
+          </section>}
         </main>
       )}
     </>
   )
+}
+
+function AccountMenu({ user, path, search, loggingOut, onLogout }: {
+  user: User
+  path: string
+  search: string
+  loggingOut: boolean
+  onLogout: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const container = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (event: MouseEvent) => {
+      if (container.current && !container.current.contains(event.target as Node)) setOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [open])
+
+  const from = encodeURIComponent(path + search)
+  return <div className="account-menu" ref={container}>
+    <button type="button" className="avatar-button" aria-label={`账户菜单：${user.username}`}
+      aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+      {user.username.slice(0, 1).toUpperCase()}
+    </button>
+    {open && <div className="account-dropdown" role="menu">
+      <div className="account-summary">
+        <strong>{user.username}</strong>
+        <span>{user.profile ? `${user.profile.education_stage} · ${user.profile.goal}` : '未设置学习目标'}</span>
+      </div>
+      <a role="menuitem" href={'/profile?from=' + from}>个人设置</a>
+      <button role="menuitem" type="button" disabled={loggingOut} onClick={() => { setOpen(false); onLogout() }}>
+        {loggingOut ? '正在退出…' : '退出'}
+      </button>
+    </div>}
+  </div>
 }
 
 function AccountRoot() {
