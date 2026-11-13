@@ -24,7 +24,9 @@ def register(client, username):
 def test_register_login_logout_and_cross_origin(client):
     assert client.get("/api/auth/me").json() == {"user": None}
     assert client.post("/api/auth/profile", json=PROFILE).status_code == 401
-    assert client.post("/api/auth/register", json={"username": "Alice", "password": PASSWORD}).status_code == 422
+    created_without_profile = client.post("/api/auth/register", json={"username": "NoProfile", "password": PASSWORD})
+    assert created_without_profile.status_code == 201
+    assert created_without_profile.json()["user"]["profile"] is None
     for password in ("onlyletters", "12345678"):
         rejected = client.post("/api/auth/register", json={"username": "Alice", "password": password, "profile": PROFILE})
         assert rejected.status_code == 422
@@ -330,6 +332,15 @@ def test_repractice_from_old_quiz_keeps_two_weakest_topics(client):
     restart = client.post("/api/quizzes", headers=headers, json=material | {"previous_id": old["id"]}).json()
     result = client.get("/api/quizzes/" + restart["id"], headers=headers).json()
     assert result["status"] == "ready" and len(result["questions"]) == 2
+
+
+def test_register_without_profile_then_onboard(client):
+    response = client.post("/api/auth/register", json={"username": "NewUser", "password": PASSWORD})
+    assert response.status_code == 201
+    assert response.json()["user"]["profile"] is None
+    assert client.get("/api/auth/me").json()["user"]["profile"] is None
+    assert client.post("/api/auth/profile", json=PROFILE).status_code == 200
+    assert client.get("/api/auth/me").json()["user"]["profile"] == PROFILE
 
 
 def test_profile_guidance_covers_stages_and_goals():

@@ -3,7 +3,17 @@ import { openFixtureLesson } from './fixtures'
 
 const previewTitle = '交互教学预览'
 
+async function enterHub(page: Page) {
+  const guest = page.getByRole('button', { name: '先逛逛' })
+  await Promise.race([
+    guest.waitFor({ timeout: 5000 }).catch(() => undefined),
+    page.getByLabel('你想弄懂什么？').waitFor({ timeout: 5000 }).catch(() => undefined),
+  ])
+  if (await guest.count()) await guest.click()
+}
+
 async function submitQuestion(page: Page, question = '请解释递归') {
+  await enterHub(page)
   await page.getByLabel('你想弄懂什么？').fill(question)
   await page.getByRole('button', { name: '生成演示' }).click()
   await expect(page).toHaveURL(/\/study$/)

@@ -42,7 +42,7 @@ class Credentials(StrictModel):
 
 
 class Registration(Credentials):
-    profile: LearnerProfile
+    profile: LearnerProfile | None = None
 
 
 def stored_profile(row):
@@ -134,16 +134,19 @@ async def register(credentials: Registration, request: Request, response: Respon
     with database() as connection:
         if connection.execute("SELECT 1 FROM users WHERE username_key = ?", (credentials.username.casefold(),)).fetchone():
             raise HTTPException(409, "该用户名已被注册。")
-    exam = await review_goal(credentials.profile.goal, client)
-    user = {"id": str(uuid4()), "username": credentials.username, "profile": credentials.profile.model_dump()}
+    exam = await review_goal(credentials.profile.goal, client) if credentials.profile else None
+    user = {"id": str(uuid4()), "username": credentials.username,
+            "profile": credentials.profile.model_dump() if credentials.profile else None}
     password_hash = await run_in_threadpool(passwords.hash, credentials.password)
     try:
         with database() as connection:
             connection.execute("""INSERT INTO users
                 (id, username, username_key, password_hash, education_stage, goal, goal_approved, exam_target)
-                VALUES (?, ?, ?, ?, ?, ?, 1, ?)""", (
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", (
                 user["id"], user["username"], user["username"].casefold(), password_hash,
-                credentials.profile.education_stage, credentials.profile.goal,
+                credentials.profile.education_stage if credentials.profile else None,
+                credentials.profile.goal if credentials.profile else None,
+                1 if credentials.profile else 0,
                 exam.model_dump_json() if exam else None,
             ))
             replace_session(connection, user["id"], request, response)

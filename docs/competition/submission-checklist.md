@@ -1,7 +1,7 @@
 # 竞赛提交清单（2026 第九届传智杯 · AI 创新应用挑战赛）
 
 > 赛道：Vibe Coding 个人赛，序号 5「AI 驱动的高交互教育与可视化」
-> 项目：演算室（interact-study）
+> 项目：可视化理论中心（interact-study）
 > 仓库：<https://github.com/json888666-afk/interact-study>
 > 本文用于对照竞赛材料要求逐项自查；视频、PDF 等由参赛者本人最终提供。
 

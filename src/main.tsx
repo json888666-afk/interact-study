@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createRoot } from 'react-dom/client'
-import { AUTH_CHANGE_KEY, AuthForm, Leaderboard, LearningSettings, authLink, authRequest, finishAuth, leaderboardLink, type User } from './account-pages'
+import { AUTH_CHANGE_KEY, AuthForm, Leaderboard, LearningSettings, authLink, authRequest, finishAuth, leaderboardLink, safeReturnLocation, type User } from './account-pages'
+import { GUEST_KEY, Onboarding, WelcomeCelebration, WelcomeGate } from './welcome'
 import { ExamLibrary } from './exam-library'
 import { fetchLesson, type LessonRequest, type LessonResponse } from './lessons'
 import { LessonWorkspace } from './lesson-workspace'
@@ -107,6 +108,7 @@ function App({ user }: { user: User | null }) {
     setLogoutError('')
     try {
       await authRequest('logout')
+      try { sessionStorage.removeItem(GUEST_KEY) } catch { /* storage may be unavailable */ }
       finishAuth()
     } catch {
       setLogoutError('退出失败，请重试。')
@@ -118,6 +120,24 @@ function App({ user }: { user: User | null }) {
   const workspace = result?.kind === 'lesson' ? session : null
   const version = workspace ? currentVersion(workspace) : null
   const path = window.location.pathname
+  const search = window.location.search
+  const params = new URLSearchParams(search)
+  const guestEntry = (() => {
+    try { return sessionStorage.getItem(GUEST_KEY) === '1' } catch { return false }
+  })()
+
+  if (user?.profile && params.get('welcome') === '1') {
+    return <WelcomeCelebration next={safeReturnLocation(params.get('next')) ?? '/'} />
+  }
+  if (user === null && path === '/' && !guestEntry) {
+    return <WelcomeGate onGuest={() => {
+      try { sessionStorage.setItem(GUEST_KEY, '1') } catch { /* storage may be unavailable */ }
+      window.location.replace('/')
+    }} />
+  }
+  if (user && (!user.profile || user.needs_goal_review)) {
+    return <Onboarding returnTo={path === '/profile' ? '/' : path + search} />
+  }
 
   return (
     <>
@@ -126,7 +146,7 @@ function App({ user }: { user: User | null }) {
           <a className="brand" href="/" onClick={(event) => {
             if (studying) { event.preventDefault(); home() }
           }}>
-            <span className="brand-mark" aria-hidden="true">∿</span>演算室
+            <span className="brand-mark" aria-hidden="true">∿</span>可视化理论中心
           </a>
           <nav className="account-nav" aria-label="账户导航">
             <a href={leaderboardLink()}>排行榜</a>
@@ -143,7 +163,7 @@ function App({ user }: { user: User | null }) {
         </div>
       </header>
       {logoutError && <p className="page" role="alert">{logoutError}</p>}
-      {user && (!user.profile || user.needs_goal_review || path === '/profile') ? <LearningSettings user={user} />
+      {user && path === '/profile' ? <LearningSettings user={user} />
       : path === '/leaderboard' ? <Leaderboard guest={!user} />
       : path === '/exam-library' ? <ExamLibrary signedIn={!!user} />
       : path === '/profile' ? <AuthForm mode="login" />

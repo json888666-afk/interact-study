@@ -1,5 +1,7 @@
 # DeepSeek Harness 会话导出（脱敏）
 
+> 注：项目现已更名为「可视化理论中心」；本文中的「演算室」为历史原词。
+
 > 导出时间：2026-11-13
 > 会话：`session-637bc208-d5ca-4841-87a7-1f207ee258e2`
 > 工具：DeepSeek Harness；会话中包含 deepseek-flash / deepseek-v4-pro 的切换

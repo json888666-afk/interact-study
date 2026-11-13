@@ -6,15 +6,28 @@ import { openFixtureLesson } from './fixtures'
 
 const password = 'Browser-password-42'
 
+async function completeOnboarding(page: Page, stage = '高中', goal = '用图像理解二次函数') {
+  await expect(page.getByRole('heading', { name: '先认识一下你' })).toBeVisible()
+  await page.getByRole('button', { name: new RegExp(stage) }).click()
+  await page.getByRole('button', { name: '下一步' }).click()
+  await expect(page.getByRole('heading', { name: '最近想弄懂什么？' })).toBeVisible()
+  await page.getByLabel('近期学习目标').fill(goal)
+  await page.getByRole('button', { name: /完成/ }).click()
+  await page.getByRole('button', { name: '开始学习' }).click()
+}
+
 async function authenticate(page: Page, mode: '注册' | '登录', name: string) {
+  await Promise.race([
+    page.getByRole('navigation', { name: '账户导航' }).waitFor({ timeout: 5000 }).catch(() => undefined),
+    page.getByRole('button', { name: '先逛逛' }).waitFor({ timeout: 5000 }).catch(() => undefined),
+  ])
+  const guest = page.getByRole('button', { name: '先逛逛' })
+  if (await guest.count()) await guest.click()
   await page.getByRole('navigation', { name: '账户导航' }).getByRole('link', { name: mode }).click()
   await page.getByLabel('用户名').fill(name)
   await page.getByLabel('密码', { exact: true }).fill(password)
-  if (mode === '注册') {
-    await page.getByLabel('学习阶段').selectOption('高中')
-    await page.getByLabel('近期学习目标').fill('用图像理解二次函数')
-  }
   await page.getByRole('button', { name: mode, exact: true }).click()
+  if (mode === '注册') await completeOnboarding(page)
   await expect(page.getByRole('navigation', { name: '账户导航' }).getByText(name, { exact: true })).toBeVisible()
 }
 
@@ -38,6 +51,7 @@ test('registration, account switching, guest recovery and leaderboard', async ({
   await page.reload()
   await expect(page.getByRole('heading', { name: '递归调用栈', exact: true })).toBeVisible()
   await page.getByRole('button', { name: '退出' }).click()
+  await page.getByRole('button', { name: '先逛逛' }).click()
   await expect(page.getByRole('button', { name: /继续上次学习.*二次函数参数/ })).toBeVisible()
   await authenticate(page, '注册', bob)
   await expect(page.getByRole('button', { name: /继续上次学习/ })).toHaveCount(0)
@@ -70,17 +84,16 @@ test('guest leaderboard invitation supports browsing, registration and ordinary 
   await expect(invite).toHaveCount(0)
 
   await page.getByRole('button', { name: '返回上一页' }).click()
-  await expect(page.getByRole('heading', { name: '把问题动起来。' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '我是新用户，开始学习' })).toBeVisible()
   await page.getByRole('link', { name: '排行榜' }).click()
   const name = 'Learner_' + randomUUID().slice(0, 8)
   await invite.getByRole('link', { name: '注册' }).click()
   await page.getByLabel('用户名').fill(name)
   await page.getByLabel('密码', { exact: true }).fill(password)
-  await page.getByLabel('学习阶段').selectOption('初中')
-  await page.getByLabel('近期学习目标').fill('能用坐标理解函数')
   await page.getByRole('button', { name: '注册', exact: true }).click()
-  await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByRole('heading', { name: '把问题动起来。' })).toBeVisible()
+  await completeOnboarding(page, '初中', '能用坐标理解函数')
+  await expect(page).toHaveURL(/\/leaderboard$/)
+  await expect(page.getByRole('heading', { name: '排行榜' })).toBeVisible()
   await expect(invite).toHaveCount(0)
 
   await page.getByRole('link', { name: '个人设置' }).click()
@@ -88,7 +101,7 @@ test('guest leaderboard invitation supports browsing, registration and ordinary 
   await page.getByLabel('学习阶段').selectOption('本科')
   await page.getByLabel('近期学习目标').fill('理解函数的变化率')
   await page.getByRole('button', { name: '保存个人设置' }).click()
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(/\/leaderboard$/)
   await page.getByRole('link', { name: '个人设置' }).click()
   await expect(page.getByLabel('学习阶段')).toHaveValue('本科')
   await expect(page.getByLabel('近期学习目标')).toHaveValue('理解函数的变化率')
@@ -112,10 +125,7 @@ test('legacy account completes settings and returns to the previous page', async
     return route.fulfill({ json: { user: { ...user, profile } } })
   })
   await page.goto('/leaderboard')
-  await expect(page.getByRole('heading', { name: '完善个人资料' })).toBeVisible()
-  await page.getByLabel('学习阶段').selectOption('硕士')
-  await page.getByLabel('近期学习目标').fill('理解梯度在优化中的作用')
-  await page.getByRole('button', { name: '保存个人设置' }).click()
+  await completeOnboarding(page, '硕士', '理解梯度在优化中的作用')
   await expect(page.getByRole('heading', { name: '排行榜', exact: true })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
@@ -172,19 +182,22 @@ test('leaderboard and library return to the source page', async ({ page }) => {
 test('goal review waits at 99 percent and keeps the form on rejection', async ({ page }) => {
   let finish: () => void = () => {}
   const waiting = new Promise<void>((resolve) => { finish = resolve })
-  await page.route('**/api/auth/register', async (route) => {
+  await page.route('**/api/auth/profile', async (route) => {
     await waiting
     await route.fulfill({ status: 422, json: { detail: '请补充你准备参加的考试。' } })
   })
+  const name = 'Review_' + randomUUID().slice(0, 8)
   await page.goto('/register')
-  await page.getByLabel('用户名').fill('ReviewUser')
+  await page.getByLabel('用户名').fill(name)
   await page.getByLabel('密码', { exact: true }).fill(password)
-  await page.getByLabel('学习阶段').selectOption('高中')
-  await page.getByLabel('近期学习目标').fill('准备参加考试')
   await page.getByRole('button', { name: '注册', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '先认识一下你' })).toBeVisible()
+  await page.getByRole('button', { name: /高中/ }).click()
+  await page.getByRole('button', { name: '下一步' }).click()
+  await page.getByLabel('近期学习目标').fill('准备参加考试')
+  await page.getByRole('button', { name: /完成/ }).click()
   const review = page.getByRole('dialog', { name: '正在审核目标' })
   await expect(review.getByText('99%')).toBeVisible()
-  await expect(page).toHaveURL(/\/register$/)
   finish()
   await expect(review).toHaveCount(0)
   await expect(page.getByRole('alert')).toHaveText('请补充你准备参加的考试。')

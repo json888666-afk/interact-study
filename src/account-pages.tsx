@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { learningRequest } from './learning-api'
 import { LoadingProgress } from './loading-progress'
 
-const educationStages = ['幼儿园', '小学', '初中', '高中', '本科', '硕士', '博士'] as const
-type Profile = { education_stage: (typeof educationStages)[number]; goal: string }
+export const educationStages = ['幼儿园', '小学', '初中', '高中', '本科', '硕士', '博士'] as const
+export type Profile = { education_stage: (typeof educationStages)[number]; goal: string }
 type Credentials = { username: string; password: string }
 export type User = { id: string; username: string; profile: Profile | null; needs_goal_review?: boolean }
 export const AUTH_CHANGE_KEY = 'interact-study.auth-change'
@@ -40,7 +40,7 @@ function readProfile(values: FormData): Profile {
   return { education_stage: stage, goal }
 }
 
-function GoalReviewDialog() {
+export function GoalReviewDialog() {
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => { dialog.current?.showModal() }, [])
   return <dialog ref={dialog} className="account-dialog" aria-label="正在审核目标"
@@ -83,8 +83,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     setError('')
     try {
       const credentials = { username: String(values.get('username')), password: String(values.get('password')) }
-      await authRequest(mode, registering ? { ...credentials, profile: readProfile(values) } : credentials)
-      finishAuth(!registering && fromLeaderboard ? '/leaderboard' : '/')
+      await authRequest(mode, credentials)
+      finishAuth(fromLeaderboard ? '/leaderboard' : '/')
     } catch (error) {
       setError(error instanceof Error ? error.message : '请求失败，请重试。')
       setBusy(false)
@@ -93,7 +93,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
 
   return (
     <main className="page account-page">
-      {registering && busy && <GoalReviewDialog />}
       <form className="account-card" onSubmit={submit}>
         <h1>{title}</h1>
         <label htmlFor="username">用户名</label>
@@ -105,8 +104,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           title={registering ? '至少 8 个字符，包含英文字母和数字。' : undefined}
           aria-describedby={registering ? 'password-rules' : undefined}
           minLength={8} maxLength={128} required />
-        {registering && <p className="subject" id="password-rules">至少 8 个字符，包含英文字母和数字。</p>}
-        {registering && <ProfileFields disabled={busy} />}
+        {registering && <p className="subject" id="password-rules">至少 8 个字符，包含英文字母和数字；注册后再设置学习阶段和目标。</p>}
         {error && <p role="alert">{error}</p>}
         <button className="primary-button" type="submit" disabled={busy}>{busy ? '正在提交…' : title}</button>
         <a href={authLink(registering ? 'login' : 'register', fromLeaderboard)}>
