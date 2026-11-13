@@ -157,17 +157,7 @@ function App({ user }: { user: User | null }) {
                 aria-current={path === '/exam-library' ? 'page' : undefined}>我的试卷</a>
               <a href={leaderboardLink()} aria-current={path === '/leaderboard' ? 'page' : undefined}>排行榜</a>
             </div>
-            {session && !studying && <button type="button" className="nav-continue"
-              aria-label={`继续上次学习：${currentVersion(session).lesson.title}`}
-              title={`继续上次学习：${currentVersion(session).lesson.title}`}
-              onClick={() => resume(session)}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="8" />
-                <path d="M12 8v4l2.5 1.5" />
-              </svg>
-              <span>继续学习</span>
-            </button>}
+            {session && !studying && <ContinueMenu session={session} onResume={() => resume(session)} />}
             {user ? <AccountMenu user={user} path={path} search={search} loggingOut={loggingOut}
               onLogout={() => void logout()} />
               : <div className="guest-actions">
@@ -231,6 +221,57 @@ function App({ user }: { user: User | null }) {
       )}
     </>
   )
+}
+
+function ContinueMenu({ session, onResume }: { session: StudySession; onResume: () => void }) {
+  const [open, setOpen] = useState(false)
+  const container = useRef<HTMLDivElement>(null)
+  const version = currentVersion(session)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (event: MouseEvent) => {
+      if (container.current && !container.current.contains(event.target as Node)) setOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [open])
+
+  function select() {
+    setOpen(false)
+    onResume()
+  }
+
+  return <div className="continue-menu" ref={container}>
+    <button type="button" className="nav-continue" aria-haspopup="dialog" aria-expanded={open}
+      aria-label={`继续上次学习：${version.lesson.title}`} title={`继续上次学习：${version.lesson.title}`}
+      onClick={() => setOpen((value) => !value)}>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 8v4l2.5 1.5" />
+      </svg>
+      <span>继续学习</span>
+      <span className="nav-continue-chevron" aria-hidden="true">▾</span>
+    </button>
+    {open && <div className="continue-popover" role="dialog" aria-label="上次学习">
+      <p className="continue-eyebrow">上次学习</p>
+      <button type="button" className="continue-topic" title={version.lesson.title} onClick={select}>
+        {version.lesson.title}
+      </button>
+      <p className="continue-version">版本 {session.versions.length}</p>
+      <button type="button" className="primary-button continue-resume" onClick={select} autoFocus>
+        继续学习 <span aria-hidden="true">→</span>
+      </button>
+    </div>}
+  </div>
 }
 
 function AccountMenu({ user, path, search, loggingOut, onLogout }: {
