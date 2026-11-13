@@ -74,6 +74,10 @@ a { color: inherit; }
 .paper-list, .paper-detail ol { padding-inline-start: 20px; }
 .paper-list li, .paper-detail li { margin-block: 12px; overflow-wrap: anywhere; }
 .paper-detail p { white-space: pre-wrap; }
+.paper-detail .paper-question-list { padding-inline-start: 0; list-style: none; }
+.paper-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafcf8; }
+.paper-pager > span { color: var(--muted); font-size: 13px; font-weight: 600; }
+.paper-pager .quiz-actions { gap: 6px; }
 .paper-repair { margin-block: 12px; }
 .rank-return { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; }
 .rank-back { display: inline-flex; align-items: center; margin-left: -8px; padding: 5px 8px; border: 0; border-radius: 7px; background: transparent; color: var(--green); font: inherit; font-size: 13px; font-weight: 600; }
