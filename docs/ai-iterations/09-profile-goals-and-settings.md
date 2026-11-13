@@ -85,11 +85,13 @@
 - 顶部「个人设置」和首页「修改」链接现在带 `?from=<当前页>`；
 - `LearningSettings` 读取 `from`，用 `safeReturnPath` 只允许同站 `/`、`/study`、`/leaderboard`、`/exam-library`，保存后返回来源页；
 - 直接打开 `/profile` 无来源时回首页；资料未完善被拦截在 `/leaderboard` 时返回排行榜；
-- 按钮文案改为「保存个人设置」。
+- 按钮文案改为「保存个人设置」；
+- 个人设置页顶部提供「← 返回上一页」与「返回首页」；返回上一页复用保存用的 `returnTo`。
 
 **验证：**
 
 - 浏览器用例：学习页 → 个人设置 → 保存 → 回到学习页（递归调用栈）；
+- 个人设置 → 返回上一页 → 学习页；个人设置 → 返回首页 → 首页；
 - legacy 账号在排行榜完善资料 → 保存 → 回排行榜；
 - 首页 → 个人设置 → 保存 → 回首页。
 
@@ -101,9 +103,11 @@
 | 普通目标也搜真题 | `practice_questions` 对 `target=None` 仍联网 | `target is None` 直接返回本地结果 |
 | 设置保存总回首页 | `finishAuth()` 默认 `/` | `?from=` + `safeReturnPath` + `finishAuth(returnTo)` |
 | 设置按钮名不明确 | 旧文案「保存学习资料」 | 改为「保存个人设置」 |
+| 排行榜/试卷返回总回首页 | `safeReturnLocation` 不含 `/exam-library`，且依赖 referrer | 支持 `/exam-library`、直接用 `from`；试卷页加返回按钮 |
+| 个人设置无返回入口 | 页面只有表单 | 顶部增加「返回上一页」「返回首页」 |
 
 ## 落地清单
 
-- 文件：`backend/goals.py`、`backend/model.py`、`backend/quizzes.py`、`src/main.tsx`、`src/account-pages.tsx`、`tests/test_accounts.py`、`tests/test_exams.py`、`tests/browser/accounts.spec.ts`、`tests/browser/study.spec.ts`
-- 提交：`e80eddc`、`0f7ac48`
-- 验证：`pytest -q` **71 passed**；`npm run build` 通过；`npm run test:browser` **19 passed**
+- 文件：`backend/goals.py`、`backend/model.py`、`backend/quizzes.py`、`src/main.tsx`、`src/account-pages.tsx`、`src/exam-library.tsx`、`tests/test_accounts.py`、`tests/test_exams.py`、`tests/browser/accounts.spec.ts`、`tests/browser/study.spec.ts`
+- 提交：`e80eddc`、`0f7ac48`、`4463bd4`、`ada3e01`
+- 验证：`pytest -q` **71 passed**；`npm run build` 通过；`npm run test:browser` **21 passed**

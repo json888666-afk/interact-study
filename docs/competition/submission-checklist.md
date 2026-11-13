@@ -18,6 +18,7 @@
 
 - 仓库地址：<https://github.com/json888666-afk/interact-study>
 - 默认分支：`main`
+- 版本标签：`v0.5.0`（`6868c2e`）、`v0.5.1`（当前 `main` HEAD）
 - 访问要求：**Public**，或给评审账号开通只读权限。
 - 提交前确认：
   - [x] GitHub 仓库已设为 Public（2026-11-13 验证；如需评审账号可另加 Collaborator）
@@ -40,7 +41,10 @@
 | `5db9bcf` | 草稿式试卷导入 + 全量候选交 API + 开放题转换 + 标签 |
 | `52def68` | Markdown/KaTeX 题干渲染 + 标签编辑 UI |
 | `0f7ac48` | 学习页 profile 展示 + 个人设置返回来源页 |
-| 本次文档提交 | DeepSeek Prompt 链 07–09 + 本清单 + README 链接 |
+| `6868c2e` | DeepSeek Prompt 链 07–09 + 本清单 + README 链接 |
+| `4463bd4` | 排行榜/我的试卷返回来源页 + 「个人设置」改名 |
+| `ada3e01` | 个人设置页增加返回上一页/返回首页 |
+| 本次文档提交 | 提交清单补充与 `v0.5.1` 版本记录 |
 
 说明：
 
