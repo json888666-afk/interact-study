@@ -347,16 +347,16 @@ a { color: inherit; }
 .account-dropdown button[role="menuitem"] { color: #a33a2c; }
 
 /* Learning home */
-.home { display: flex; flex-direction: column; justify-content: flex-start; width: min(100% - 40px, 1000px); min-height: calc(100dvh - 70px); padding: clamp(24px, 4vh, 44px) 0 48px; }
+.home { display: flex; flex-direction: column; justify-content: flex-start; width: min(100% - 40px, 1120px); min-height: calc(100dvh - 70px); padding: clamp(24px, 4vh, 44px) 0 48px; }
 .home-head { margin-bottom: 22px; text-align: left; }
 .home-greeting { margin: 0 0 2px; color: var(--green); font-size: clamp(22px, 2.6vw, 28px); font-weight: 650; letter-spacing: -.02em; line-height: 1.45; }
 .home-head h1 { margin: 0 0 6px; font-size: clamp(22px, 2.6vw, 28px); letter-spacing: -.03em; line-height: 1.45; }
 .home-sub { max-width: 760px; margin: 0; color: var(--muted); font-size: 15px; line-height: 1.7; }
 .home-examples { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 13px; }
-.home .question-card { width: 100%; max-width: 960px; padding: 26px; border-radius: 24px; box-shadow: 0 18px 50px #203d2414; }
+.home .question-card { width: 100%; max-width: 1080px; padding: 28px; border-radius: 26px; box-shadow: 0 18px 50px #203d2414; }
 .home .question-card label { font-size: 16px; }
-.home .question-card textarea { min-height: 160px; padding: 16px; font-size: 16px; }
-.home .question-card .primary-button { min-height: 48px; padding: 0 22px; font-size: 15px; }
+.home .question-card textarea { min-height: 200px; padding: 17px; font-size: 16px; }
+.home .question-card .primary-button { min-height: 50px; padding: 0 24px; font-size: 15.5px; }
 .nav-continue { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: #e7f0e6; color: var(--green); font: inherit; font-size: 13px; font-weight: 650; white-space: nowrap; }
 .nav-continue:hover { border-color: var(--green); background: #dcebe0; }
 .continue-menu { position: relative; }
@@ -376,7 +376,7 @@ a { color: inherit; }
   .home-greeting, .home-head h1 { font-size: 22px; }
   .home-sub { margin: 0; font-size: 14px; }
   .home-examples { justify-content: flex-start; }
-  .home .question-card textarea { min-height: 150px; }
+  .home .question-card textarea { min-height: 160px; }
   .nav-continue { width: 34px; padding: 0; justify-content: center; }
   .nav-continue span { display: none; }
 }
