@@ -18,6 +18,14 @@ const STAGES: { name: Stage; mark: string; note: string }[] = [
 const GOAL_EXAMPLES = ['准备小升初数学', '理解二次函数图像', '学习递归', '准备期末数学考试']
 
 export function WelcomeGate({ onGuest }: { onGuest: () => void }) {
+  const [a, setA] = useState(1)
+  const progress = ((a + 1.5) / 3) * 100
+  const points = Array.from({ length: 49 }, (_, index) => {
+    const x = -1.8 + (3.6 * index) / 48
+    return [160 + x * 70, 100 - a * x * x * 20]
+  })
+  const curve = points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
+
   return <main className="welcome-page">
     <header className="welcome-top">
       <a className="brand" href="/">
@@ -48,15 +56,20 @@ export function WelcomeGate({ onGuest }: { onGuest: () => void }) {
         </div>
         <div className="preview-graph">
           <svg viewBox="0 0 320 200" role="img" aria-label="抛物线示意图">
-            <line x1="24" y1="176" x2="296" y2="176" />
+            <line x1="24" y1="100" x2="296" y2="100" />
             <line x1="160" y1="16" x2="160" y2="184" />
-            <path d="M40 176 Q160 -10 280 176" />
-            <circle cx="160" cy="176" r="4" />
+            <path d={curve} />
+            <circle cx="160" cy="100" r="4" />
           </svg>
-          <span className="preview-label">a = 1.0</span>
+          <span className="preview-label">a = {a.toFixed(1)}</span>
         </div>
-        <div className="preview-slider" aria-hidden="true"><span /></div>
-        <h2>二次函数开口方向</h2>
+        <input className="preview-range" type="range" min="-1.5" max="1.5" step="0.1" value={a}
+          aria-label="参数 a" onChange={(event) => setA(Number(event.target.value))}
+          style={{ background: `linear-gradient(to right, var(--green) 0 ${progress}%, #e2e8db ${progress}% 100%)` }} />
+        <div className="preview-caption">
+          <h2>二次函数开口方向</h2>
+          <span className="preview-status">{a > 0 ? '开口向上' : a < 0 ? '开口向下' : '变成直线'}</span>
+        </div>
         <p>拖动 a，看抛物线怎么翻转。</p>
       </div>
     </aside>

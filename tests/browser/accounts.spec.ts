@@ -22,7 +22,10 @@ async function authenticate(page: Page, mode: '注册' | '登录', name: string)
     page.getByRole('button', { name: '先逛逛' }).waitFor({ timeout: 5000 }).catch(() => undefined),
   ])
   const guest = page.getByRole('button', { name: '先逛逛' })
-  if (await guest.count()) await guest.click()
+  if (await guest.count()) {
+    await guest.click()
+    await page.getByLabel('你想弄懂什么？').waitFor({ timeout: 10000 })
+  }
   await page.getByRole('navigation', { name: '账户导航' }).getByRole('link', { name: mode }).click()
   await page.getByLabel('用户名').fill(name)
   await page.getByLabel('密码', { exact: true }).fill(password)
@@ -56,6 +59,7 @@ test('registration, account switching, guest recovery and leaderboard', async ({
   await authenticate(page, '注册', bob)
   await expect(page.getByRole('button', { name: /继续上次学习/ })).toHaveCount(0)
   await page.getByRole('button', { name: '退出' }).click()
+  await expect(page.getByRole('button', { name: '先逛逛' })).toBeVisible()
   await authenticate(page, '登录', alice)
   await expect(page.getByRole('button', { name: /继续上次学习.*递归调用栈/ })).toBeVisible()
   await page.getByRole('link', { name: '排行榜', exact: true }).click()

@@ -19,6 +19,22 @@ async function submitQuestion(page: Page, question = '请解释递归') {
   await expect(page).toHaveURL(/\/study$/)
 }
 
+test('welcome preview slider changes the parabola', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: '把问题动起来。' })).toBeVisible()
+  const slider = page.getByRole('slider', { name: '参数 a' })
+  const setSlider = (value: string) => slider.evaluate((element, next) => {
+    const input = element as HTMLInputElement
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    setter?.call(input, next)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  }, value)
+  await setSlider('-1')
+  await expect(page.getByText('开口向下')).toBeVisible()
+  await setSlider('1')
+  await expect(page.getByText('开口向上')).toBeVisible()
+})
+
 async function mockLesson(page: Page, javascript: string) {
   await page.route('**/api/lessons/generate', (route) => route.fulfill({
     json: {
