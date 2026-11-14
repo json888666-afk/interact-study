@@ -469,8 +469,12 @@ export function ExamLibrary({ signedIn }: { signedIn: boolean }) {
                           onClick={() => { setRepair(question.id); setEditing(null); setTagging(null) }}>重新提交这道题</button>)}
                   </div>
                 </>}
-            <div className="quiz-actions">{question.tags.map((tag) =>
-              <a key={tag} href={'/?question=' + encodeURIComponent(`请讲解${tag}`)}>学习{tag}</a>)}</div>
+            {!!question.tags.length && <div className="tag-links" role="group" aria-label="学习知识点">
+              <span className="tag-links-label">学习知识点：</span>
+              {question.tags.map((tag) => <a key={tag} className="tag-pill"
+                href={'/?question=' + encodeURIComponent(`请讲解${tag}`)}
+                aria-label={`学习${tag}`} title={`学习${tag}`}>{tag}</a>)}
+            </div>}
           </li>}
         </ol>
         {questionPager()}

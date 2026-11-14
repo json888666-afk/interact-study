@@ -172,10 +172,11 @@ export function leaderboardLink() {
 }
 
 export function returnLabel(value: string) {
-  if (value.startsWith('/study')) return '返回学习'
-  if (value === '/leaderboard') return '返回排行榜'
-  if (value === '/exam-library') return '返回我的试卷'
-  if (value === '/profile') return '返回个人设置'
+  const path = value.split('?')[0]
+  if (path === '/study') return '返回学习'
+  if (path === '/leaderboard') return '返回排行榜'
+  if (path === '/exam-library') return '返回我的试卷'
+  if (path === '/profile') return '返回个人设置'
   return '返回首页'
 }
 

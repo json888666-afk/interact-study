@@ -64,7 +64,8 @@ a { color: inherit; }
 .rank-current-user { background: #d8eee2; color: #124b37; font-weight: 700; }
 .rank-you { display: inline-block; margin-inline-start: 8px; padding: 2px 6px; border-radius: 6px; background: #12533d; color: white; font-size: 12px; }
 .rank-pages { display: flex; justify-content: center; align-items: center; gap: 12px; padding-top: 12px; }
-.exam-library { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; align-items: start; }
+.exam-library { width: min(100% - 40px, 1200px); display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 920px) { .exam-library { width: min(100% - 40px, 720px); grid-template-columns: 1fr; } }
 .exam-library .account-card { box-sizing: border-box; width: 100%; max-width: none; }
 .exam-library fieldset { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .exam-library legend { font-weight: 650; }
@@ -340,6 +341,12 @@ a { color: inherit; }
 .goal-examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .example-chip { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fffdf8; color: var(--ink); font: inherit; font-size: 13px; }
 .example-chip:hover { border-color: var(--green); color: var(--green); }
+.tag-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.tag-links-label { color: var(--muted); font-size: 12px; font-weight: 600; }
+.tag-pill { display: inline-flex; align-items: center; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; background: #fffdf8; color: var(--ink); font-size: 13px; line-height: 1.4; text-decoration: none; }
+.tag-pill:hover { border-color: var(--green); color: var(--green); background: #fff; }
+.account-card .tag-pill { color: var(--ink); text-decoration: none; }
+.account-card .tag-pill:hover { color: var(--green); }
 .onboarding-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .onboarding-error { color: #b42318; font-size: 13px; }
 @media (max-width: 620px) {
