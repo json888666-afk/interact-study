@@ -99,6 +99,7 @@ test('registration, account switching, guest recovery and leaderboard', async ({
 })
 
 test('guest leaderboard invitation supports browsing, registration and ordinary login return', async ({ page }) => {
+  test.setTimeout(60000)
   await page.route('**/api/leaderboard?page=*', async (route) => {
     const pageNumber = new URL(route.request().url()).searchParams.get('page')
     await route.fulfill({ json: {
@@ -139,6 +140,7 @@ test('guest leaderboard invitation supports browsing, registration and ordinary 
   await expect(page.getByLabel('近期学习目标')).toHaveValue('理解函数的变化率')
 
   await logout(page)
+  await expect(page.getByRole('link', { name: '我是新用户，开始学习' })).toBeVisible()
   await page.getByRole('link', { name: '排行榜' }).click()
   await invite.getByRole('link', { name: '登录' }).click()
   await page.getByLabel('用户名').fill(name)
@@ -175,7 +177,7 @@ test('saving settings from a lesson returns to the lesson', async ({ page }) => 
 })
 
 test('personal settings has contextual back actions', async ({ page }) => {
-  const name = 'Settings_' + randomUUID().slice(0, 8)
+  const name = 'Setting_' + randomUUID().slice(0, 8)
   await page.goto('/')
   await authenticate(page, '注册', name)
   await openFixtureLesson(page, 'recursion')

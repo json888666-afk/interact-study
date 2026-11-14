@@ -96,8 +96,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       <form className="account-card" onSubmit={submit}>
         <h1>{title}</h1>
         <label htmlFor="username">用户名</label>
-        <input id="username" name="username" autoComplete="username" minLength={3} maxLength={24} required />
-        {registering && <p className="subject">3–24 个字母、汉字、数字、下划线或连字符。</p>}
+        <input id="username" name="username" autoComplete="username"
+          minLength={2} maxLength={registering ? 16 : 24} required />
+        {registering && <p className="subject">2–16 个字母、汉字、数字、下划线或连字符。</p>}
         <label htmlFor="password">密码</label>
         <input id="password" name="password" type="password" autoComplete={registering ? 'new-password' : 'current-password'}
           pattern={registering ? '(?=.*[A-Za-z])(?=.*[0-9]).*' : undefined}
@@ -297,7 +298,7 @@ export function Leaderboard({ guest }: { guest: boolean }) {
                 return <li key={entry.username} className={`rank-row${mine ? ' rank-current-user' : ''}`}>
                   <span className="rank-place">{entry.rank}</span>
                   <span className="rank-learner">
-                    <span className="rank-user">
+                    <span className="rank-user" title={entry.username}>
                       <span className="rank-avatar" style={{ background: avatar.color }} aria-hidden="true">{avatar.label}</span>
                       <span className="rank-name">{entry.username}</span>
                       {mine && <span className="rank-you">你</span>}

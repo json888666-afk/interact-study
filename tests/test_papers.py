@@ -475,7 +475,7 @@ def test_all_candidates_are_sent_to_api(client, monkeypatch):
         return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
 
     mock_upstream(handler)
-    register(client, "AllCandidatesUser", "备考成都中考数学")
+    register(client, "AllCandidateUser", "备考成都中考数学")
     body = document("1. " + quadratic, "2. " + inverse)
     response = upload(client, "two.docx", body)
     assert response.status_code == 201, response.text

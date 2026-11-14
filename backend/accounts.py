@@ -36,8 +36,8 @@ class Credentials(StrictModel):
     @classmethod
     def normalize_username(cls, value: str) -> str:
         value = unicodedata.normalize("NFKC", value).strip()
-        if not re.fullmatch(r"[\w-]{3,24}", value):
-            raise ValueError("用户名须为 3–24 个字母、汉字、数字、下划线或连字符。")
+        if not re.fullmatch(r"[\w-]{2,24}", value):
+            raise ValueError("用户名须为 2–24 个字母、汉字、数字、下划线或连字符。")
         return value
 
 
@@ -129,6 +129,8 @@ def replace_session(connection, user_id: str, request: Request, response: Respon
 @router.post("/api/auth/register", status_code=201)
 async def register(credentials: Registration, request: Request, response: Response, client=Depends(model_client)):
     same_origin(request)
+    if not 2 <= len(credentials.username) <= 16:
+        raise HTTPException(422, "用户名须为 2–16 个字符。")
     if not (re.search(r"[A-Za-z]", credentials.password) and re.search(r"[0-9]", credentials.password)):
         raise HTTPException(422, "密码须至少包含一个英文字母和一个数字。")
     with database() as connection:

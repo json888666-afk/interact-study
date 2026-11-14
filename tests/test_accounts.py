@@ -228,6 +228,11 @@ def test_leaderboard_paginates_and_ranks_ties(client):
     }
 
 
+def test_registration_username_length_limits(client):
+    assert register(client, "ab").status_code == 201
+    assert register(client, "a" * 17).status_code == 422
+
+
 def test_legacy_database_migrates_report_and_preserves_guest_access(quiz_database, monkeypatch):
     async def approve(_goal, _client):
         return None
