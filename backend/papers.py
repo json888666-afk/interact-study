@@ -243,6 +243,9 @@ async def local_questions(account, target, context, client, *, count, excluded=(
     text = replacement["topic"] if replacement else f"{context.lesson.title} {context.question} {context.lesson.summary}"
     with database() as connection:
         rows = store.matching_questions(connection, account, text, target)
+        if target is not None and len(rows) < count:
+            seen = {row["data"] for row in rows}
+            rows += [row for row in store.matching_questions(connection, account, text, None) if row["data"] not in seen]
     used = {normalized(stem).casefold() for stem in excluded}
     choices, opens = [], []
     for row in rows:

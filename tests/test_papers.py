@@ -236,7 +236,7 @@ def test_same_number_in_different_sections_and_pages_is_not_merged():
     assert all(item["status"] == "draft" for item in output)
 
 
-def test_knowledge_target_matches_bank_across_exams_but_exam_target_does_not(client, monkeypatch):
+def test_knowledge_and_exam_targets_use_the_whole_personal_bank(client, monkeypatch):
     no_online_exam(monkeypatch)
     monkeypatch.setenv("EXAM_DEEPSEEK_API_KEY", "exam-test")
     beijing = STEM + "（北京）"
@@ -252,7 +252,9 @@ def test_knowledge_target_matches_bank_across_exams_but_exam_target_does_not(cli
                     "answers": [{"page": 1, "number": "1", "choices": ["A"], "evidence": "1. A"}]}
         if prompt == EXAM_SELECT_PROMPT:
             assert data["context"]["exam"] == expected["exam"]
-            assert {item["stem"] for item in data["candidates"]} == ({chengdu} if expected["exam"] else {beijing, chengdu})
+            assert {item["stem"] for item in data["candidates"]} == {beijing, chengdu}
+            if expected["exam"] is not None:
+                assert data["candidates"][0]["stem"] == chengdu
             index = next(i for i, item in enumerate(data["candidates"]) if item["stem"] == expected["stem"])
             return {"questions": [{"candidate": index, "topic": "二次函数", "correct": [0], "explanation": "系数为正。"}]}
         if prompt == DRAFT_PROMPT:
