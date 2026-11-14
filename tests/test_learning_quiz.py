@@ -197,6 +197,59 @@ def test_initial_review_retry_then_grade_and_replace_single_question(client, qui
     assert client.get(path, headers=owner).json() == final.json()
 
 
+def test_regenerate_uses_feedback_and_keeps_all_topics(client):
+    feedback_seen = []
+    round_number = 0
+
+    def handler(prompt, content, _model):
+        nonlocal round_number
+        data = json.loads(content)
+        if prompt == DRAFT_PROMPT:
+            feedback_seen.append(data["scope"].get("learner_feedback"))
+            if data["scope"].get("learner_feedback"):
+                round_number += 1
+                offset = 900 + round_number * 100
+                return {"topics": ["开口"], "questions": [
+                    question(offset + index, "开口", "multiple" if index == 0 else "single") for index in range(10)
+                ]}
+            return draft()
+        assert prompt == FIRST_REVIEW_PROMPT
+        return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
+
+    mock_upstream(handler)
+    owner, path, quiz = start(client)
+    old_stems = {item["stem"] for item in quiz["questions"]}
+    assert quiz["status"] == "ready" and len(quiz["questions"]) == 10
+    assert client.post(path + "/regenerate", headers=owner, json={"feedback": "   "}).status_code == 422
+    assert client.post(path + "/regenerate", headers=owner, json={"feedback": "x" * 501}).status_code == 422
+
+    first = client.post(path + "/regenerate", headers=owner,
+                        json={"feedback": "这批题太难了，题干也太长"})
+    assert first.status_code == 202, first.text
+    first_quiz = client.get("/api/quizzes/" + first.json()["id"], headers=owner).json()
+    assert first_quiz["status"] == "ready" and len(first_quiz["questions"]) == 10
+    assert {item["stem"] for item in first_quiz["questions"]}.isdisjoint(old_stems)
+    assert feedback_seen == [None, "这批题太难了，题干也太长"]
+
+    second = client.post(f"/api/quizzes/{first_quiz['id']}/regenerate", headers=owner,
+                         json={"feedback": "再简单一点"})
+    assert second.status_code == 202
+    second_quiz = client.get("/api/quizzes/" + second.json()["id"], headers=owner).json()
+    assert second_quiz["status"] == "ready" and len(second_quiz["questions"]) == 10
+    assert {item["stem"] for item in second_quiz["questions"]}.isdisjoint(
+        {item["stem"] for item in first_quiz["questions"]})
+    assert feedback_seen[-1] == "再简单一点"
+    assert client.get(path, headers=owner).status_code == 200
+
+    for item in second_quiz["questions"]:
+        selected = [0] if item["kind"] == "single" else [0, 1]
+        assert client.post(f"/api/quizzes/{second_quiz['id']}/questions/{item['id']}/answer",
+                           headers=owner, json={"selected": selected}).status_code == 200
+    assert client.get("/api/quizzes/" + second_quiz["id"], headers=owner).json()["report"] is not None
+    assert client.post(f"/api/quizzes/{second_quiz['id']}/regenerate", headers=owner,
+                       json={"feedback": "再换一批"}).status_code == 409
+
+
 @pytest.mark.parametrize(("verdict", "answered"), [("valid", False), ("valid", True), ("uncertain", True), ("failed", True)])
 def test_challenge_leaves_original_and_answer_on_other_outcomes(client, verdict, answered):
     def handler(prompt, content, model):

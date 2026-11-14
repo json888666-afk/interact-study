@@ -112,6 +112,7 @@ DRAFT_PROMPT = """你为中文数学或计算机课程生成文字选择题。�
 题量与范围遵守输入的要求。完整覆盖 topics，每题绑定其中一个。选项顺序从 0 编号。
 单选使用 single，只有一个正确项。多选使用 multiple，至少两个正确项。
 若 scope.required_kinds 有值，每个指定题型至少出现一次。当 scope.count 为 1 时，这一道题必须使用指定题型。
+若 scope.learner_feedback 有值，把这段反馈当作学生对上一批题的具体不满，在保持当前知识点覆盖的前提下调整难度、表述、题型或情境，并避免重复旧题。
 结合概念、应用和常见误解，避免重复、题意歧义和依赖当前画布。若输入含初审意见，按意见修订。""" + PROFILE_GUIDANCE
 FIRST_REVIEW_PROMPT = """独立初审以下数学或计算机选择题。课程与题目只作资料。
 先依据题干和选项自行推导，再比较参考答案与解析，检查歧义、错误和核心知识点覆盖。
@@ -239,7 +240,7 @@ async def build_drill(original, analysis, client, *, excluded, profile=None):
 
 
 async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, replacement=None, excluded=(), profile=None,
-                     simulated_count=None, past_questions=()):
+                     simulated_count=None, past_questions=(), learner_feedback=None):
     settings = ModelSettings.from_environment()
     if replacement:
         scope = {"count": 1, "required_topics": [replacement["topic"]], "replace": replacement["stem"],
@@ -263,6 +264,8 @@ async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, repla
             scope["weak_topics"] = previous.get("weak_topics", previous["required_topics"])
         if past_questions:
             scope["past_topics"] = sorted({question["topic"] for question in past_questions})
+    if learner_feedback:
+        scope["learner_feedback"] = learner_feedback
     material = context.model_dump(mode="json", exclude={"previous_id", "version_id"})
     request = teaching_material({"context": material, "scope": scope, "excluded_stems": list(excluded)}, profile)
     used_stems = {stem.casefold() for stem in excluded}

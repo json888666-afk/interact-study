@@ -8,6 +8,7 @@ import { InlineMarkdown, Markdown } from './markdown'
 
 const awaitingReview = (question: Question) => question.review?.status === 'pending'
 const paused = (question: Question) => awaitingReview(question) || question.review?.status === 'replacement_failed'
+const FEEDBACK_PRESETS = ['太难', '太简单', '知识点不对', '太重复', '题干不清楚']
 
 const letters = (options: number[]) => options.map((item) => String.fromCharCode(65 + item)).join('、')
 
@@ -172,13 +173,15 @@ export function QuizPanel({ owner, version, context, onReturn }: {
   const [index, setIndex] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedback, setFeedback] = useState('')
   const active = useRef<AbortController | null>(null)
   const [replacementSeen, dismissReplacement] = useNotice()
   const [celebrationSeen, dismissCelebration, rememberCelebration] = useNotice('celebration')
   const [passSeen, dismissPass, rememberPass] = useNotice('pass')
 
   async function run(action: (signal: AbortSignal) => Promise<Quiz>, resetIndex = false) {
-    if (active.current) return
+    if (active.current) return false
     const controller = new AbortController()
     active.current = controller
     setBusy(true)
@@ -189,9 +192,12 @@ export function QuizPanel({ owner, version, context, onReturn }: {
         setQuiz(updated)
         if (resetIndex) setIndex(Math.max(0, updated.questions.findIndex((item) =>
           updated.blocked_question_id ? item.id === updated.blocked_question_id : !item.answer)))
+        return true
       }
+      return false
     } catch (error) {
       if (!controller.signal.aborted) setError(error instanceof Error ? error.message : '练习请求失败，请重试。')
+      return false
     } finally {
       if (!controller.signal.aborted) {
         active.current = null
@@ -238,6 +244,17 @@ export function QuizPanel({ owner, version, context, onReturn }: {
     void run((signal) => startQuiz(owner, version, context, signal, quiz?.id), true)
   }
 
+  async function regenerate() {
+    if (!quiz) return
+    const value = feedback.trim()
+    if (!value) return
+    const done = await run((signal) => quizRequest<Quiz>(owner, `/${quiz.id}/regenerate`, signal, { feedback: value }), true)
+    if (done) {
+      setFeedbackOpen(false)
+      setFeedback('')
+    }
+  }
+
   function retry() {
     if (!quiz) load()
     else void run((signal) => quizRequest<Quiz>(owner, '/' + quiz.id, signal))
@@ -262,6 +279,7 @@ export function QuizPanel({ owner, version, context, onReturn }: {
   const weak = report?.topics.filter((topic) => topic.correct < topic.total).map((topic) => topic.topic) ?? []
   const suggestion = weak.length ? `我在练习中对${weak.join('、')}掌握不够。能结合当前演示解释这些知识点吗？` : ''
   const answered = quiz?.questions.filter((item) => item.answer && !paused(item)).length ?? 0
+  const canRegenerate = quiz?.status === 'ready' && !report && !waiting && !quiz.blocked_question_id
 
   return (
     <section className="quiz-panel" aria-labelledby="quiz-title">
@@ -298,8 +316,40 @@ export function QuizPanel({ owner, version, context, onReturn }: {
       <div className="quiz-header">
         <div><h2 id="quiz-title">检查理解</h2><p>多选须完全正确。正确率达到 90% 即通过。</p>
           {quiz?.exam && <p className="subject">备考 · {quiz.exam.exam} · {quiz.exam.subject}</p>}</div>
-        <button className="quiet-button" type="button" onClick={() => onReturn(suggestion)}>返回学习</button>
+        <div className="quiz-header-actions">
+          {canRegenerate && <button className="quiet-button" type="button" disabled={busy}
+            aria-expanded={feedbackOpen} aria-controls="quiz-regenerate"
+            onClick={() => setFeedbackOpen((open) => !open)}>换一批题</button>}
+          <button className="quiet-button" type="button" onClick={() => onReturn(suggestion)}>返回学习</button>
+        </div>
       </div>
+      {feedbackOpen && quiz && canRegenerate && <form id="quiz-regenerate" className="quiz-regenerate"
+        aria-labelledby="quiz-regenerate-title"
+        onSubmit={(event) => { event.preventDefault(); void regenerate() }}>
+        <div className="quiz-regenerate-head">
+          <h3 id="quiz-regenerate-title">这批题哪里不合适？</h3>
+          <p>系统会保留当前知识点，按你的反馈重新生成 10 道题。</p>
+        </div>
+        <label htmlFor="quiz-regenerate-feedback">你的反馈</label>
+        <textarea id="quiz-regenerate-feedback" value={feedback} maxLength={500} rows={3} required autoFocus
+          placeholder="例如：太难了，题干太长，或者这几点重复太多。"
+          aria-describedby="quiz-regenerate-help"
+          onChange={(event) => setFeedback(event.target.value)} />
+        <div className="feedback-presets" aria-label="常见反馈">
+          {FEEDBACK_PRESETS.map((preset) => <button key={preset} className="feedback-chip" type="button"
+            onClick={() => setFeedback((current) => current ? `${current}，${preset}` : preset)}>{preset}</button>)}
+        </div>
+        <p className="subject" id="quiz-regenerate-help">{answered > 0
+          ? '换一批会清空当前作答；本次练习未完成，不会获得积分。'
+          : '换一批会用新题替换当前 10 道题。'}</p>
+        <div className="quiz-actions">
+          <button className="quiet-button" type="button" disabled={busy}
+            onClick={() => setFeedbackOpen(false)}>取消</button>
+          <button className="primary-button" type="submit" disabled={busy || !feedback.trim()}>
+            {busy ? '正在按反馈出题…' : '按反馈重新生成'}
+          </button>
+        </div>
+      </form>}
       {(!quiz || quiz.status === 'generating') && !error &&
         <LoadingProgress label={quiz?.exam ? '正在准备备考题并初审…' : '正在出题并初审…'} />}
       {error && <div role="alert"><p>{error}</p><button className="quiet-button" disabled={busy} onClick={retry}>重试请求</button></div>}

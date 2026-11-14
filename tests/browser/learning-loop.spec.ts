@@ -107,6 +107,44 @@ test('asks with screenshot, resumes practice after refresh and returns to the sa
   expect(asks).toBe(2)
 })
 
+test('regenerates a practice batch from learner feedback', async ({ page }) => {
+  const makeQuiz = (id: string, stemPrefix: string): Quiz => ({
+    id, version_id: 'version', status: 'ready', message: '', report: null,
+    ranking: { enabled: false, session_point: 0 },
+    questions: Array.from({ length: 10 }, (_, index) => ({
+      id: `${id}-${index}`, kind: 'single', topic: '开口方向',
+      stem: `${stemPrefix} ${index + 1}`, options: ['向上', '向下', '无法确定'],
+    })),
+  })
+  let quiz = makeQuiz('quiz', '原题目')
+
+  await page.route('**/api/quizzes**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: quiz })
+      return
+    }
+    const payload = route.request().postDataJSON()
+    if (path.endsWith('/regenerate')) {
+      expect(payload.feedback).toBe('太难了，题干太长')
+      quiz = makeQuiz('quiz-new', '反馈后的题目')
+      await route.fulfill({ json: quiz })
+      return
+    }
+    await route.fulfill({ json: quiz })
+  })
+
+  await openFixtureLesson(page, 'quadratic')
+  await page.getByRole('button', { name: '开始练习' }).click()
+  await expect(page.getByRole('heading', { name: '检查理解' })).toBeVisible()
+  await page.getByRole('button', { name: '换一批题' }).click()
+  await expect(page.getByRole('heading', { name: '这批题哪里不合适？' })).toBeVisible()
+  await expect(page.getByText('换一批会用新题替换当前 10 道题。')).toBeVisible()
+  await page.getByLabel('你的反馈').fill('太难了，题干太长')
+  await page.getByRole('button', { name: '按反馈重新生成' }).click()
+  await expect(page.getByText('反馈后的题目 1').first()).toBeVisible()
+})
+
 test('hides the answer during a challenge and thanks the learner once after a replacement', async ({ page }) => {
   const original = { id: 'original', kind: 'single' as const, topic: '开口方向', stem: '原来的题目', options: ['向上', '向下'] }
   const answer = { selected: [0], correct: [0], is_correct: true, explanation: '检查 a 的符号。' }

@@ -18,7 +18,7 @@ from .quiz_models import (
     MAIN_PAST_TARGET, MAIN_QUESTION_COUNT, AnswerRequest, ChallengeRequest, QuizRequest, analyze_drill, build_drill, build_quiz,
     review_challenge,
 )
-from .schemas import StrictModel
+from .schemas import StrictModel, bounded_text
 
 router = APIRouter(prefix="/api/quizzes")
 Client = Annotated[httpx.AsyncClient, Depends(model_client, scope="request")]
@@ -60,7 +60,30 @@ class ExamChoice(StrictModel):
     action: Literal["retry", "simulated"]
 
 
-async def generate_job(owner, quiz_id, request, client, previous, excluded, profile, exam=None, account_id=None):
+class FeedbackRequest(StrictModel):
+    feedback: Annotated[str, bounded_text(500)]
+
+
+def exam_context(connection, account_id):
+    target = account_exam(connection, account_id)
+    if not target:
+        return None
+    past_count, simulated_count = exam_counts()
+    return {"target": target.model_dump(), "past_count": past_count, "simulated_count": simulated_count,
+            "simulated_only": False}
+
+
+def feedback_scope(quiz):
+    topics = list(dict.fromkeys(question["topic"] for question in quiz["questions"])) or list(quiz["topics"])
+    wrong = list(dict.fromkeys(
+        question["topic"] for question in quiz["questions"]
+        if quiz["answers"].get(question["id"], {}).get("is_correct") is False
+    ))
+    return {"required_topics": topics, "weak_topics": wrong or topics}
+
+
+async def generate_job(owner, quiz_id, request, client, previous, excluded, profile, exam=None, account_id=None,
+                       learner_feedback=None):
     try:
         past = []
         if exam:
@@ -72,7 +95,8 @@ async def generate_job(owner, quiz_id, request, client, previous, excluded, prof
             past = await practice_questions(account_id, None, request, client, count=MAIN_PAST_TARGET, excluded=excluded)
         simulated_count = MAIN_QUESTION_COUNT - len(past)
         draft = await build_quiz(request, client, previous=previous, profile=profile, simulated_count=simulated_count,
-                                 past_questions=past, excluded=[*excluded, *(question["stem"] for question in past)])
+                                 past_questions=past, excluded=[*excluded, *(question["stem"] for question in past)],
+                                 learner_feedback=learner_feedback)
         questions = past + [question.model_dump() | {"origin": "simulated"} for question in draft.questions]
         update = {"status": "ready", "message": "", "public_papers": [],
                   "topics": list(dict.fromkeys(q["topic"] for q in questions)),
@@ -126,16 +150,42 @@ def start_quiz(request: QuizRequest, owner: Owner, jobs: BackgroundTasks, client
                             account_id=owner.account_id, learning_session=owner.learning_session)
         previous = practice_scope(old) if old else None
         excluded = store.seen_stems(old) if old else []
-        target = account_exam(connection, owner.account_id)
-        exam = None
-        if target:
-            past_count, simulated_count = exam_counts()
-            exam = {"target": target.model_dump(), "past_count": past_count, "simulated_count": simulated_count,
-                    "simulated_only": False, "previous": previous, "excluded": excluded}
+        exam = exam_context(connection, owner.account_id)
+        if exam:
+            exam.update(previous=previous, excluded=excluded)
             quiz["exam"] = exam
             store.save(connection, quiz)
         response = store.public(quiz, connection)
     jobs.add_task(generate_job, owner.key, quiz["id"], request, client, previous, excluded, profile, exam, owner.account_id)
+    return response
+
+
+@router.post("/{quiz_id}/regenerate", status_code=202)
+def regenerate(quiz_id: UUID4, request: FeedbackRequest, owner: Owner, jobs: BackgroundTasks, client: Client,
+               profile: Profile):
+    with store.database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        quiz = store.owned(connection, owner.key, str(quiz_id))
+        if quiz["status"] != "ready" or quiz["report"]:
+            raise HTTPException(409, "本次练习已完成或正在生成，不能换一批题。")
+        if store.blocked_question(quiz) or any(
+            review["status"] == "pending" for review in quiz["reviews"].values()
+        ):
+            raise HTTPException(409, "请先完成当前核查或巩固，再换一批题。")
+        context = QuizRequest.model_validate(quiz["context"])
+        previous = feedback_scope(quiz)
+        excluded = store.seen_stems(quiz)
+        new = store.insert(connection, owner.key, str(quiz["version_id"]), context.model_dump(mode="json"),
+                           account_id=owner.account_id, learning_session=owner.learning_session)
+        new["learner_feedback"] = request.feedback
+        exam = exam_context(connection, owner.account_id)
+        if exam:
+            exam.update(previous=previous, excluded=excluded)
+            new["exam"] = exam
+        store.save(connection, new)
+        response = store.public(new, connection)
+    jobs.add_task(generate_job, owner.key, new["id"], context, client, previous, excluded, profile, exam, owner.account_id,
+                  request.feedback)
     return response
 
 
