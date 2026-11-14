@@ -330,7 +330,7 @@ a { color: inherit; }
 .welcome-top nav a { color: var(--muted); text-decoration: none; }
 .welcome-top nav a:hover { color: var(--green); }
 .welcome-hero { align-self: center; padding: clamp(18px, 4vw, 48px) 0; }
-.welcome-eyebrow { margin: 0 0 14px; color: var(--green); font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.welcome-eyebrow { margin: 0 0 14px; color: var(--green); font-size: clamp(18px, 2.2vw, 24px); font-weight: 650; letter-spacing: .06em; line-height: 1.4; text-transform: uppercase; }
 .welcome-hero h1 { margin: 0; font-size: clamp(46px, 6.5vw, 82px); letter-spacing: -.07em; line-height: 1.05; }
 .welcome-hero h1 span { color: var(--green); }
 .welcome-copy { max-width: 48ch; margin: 18px 0 0; color: var(--muted); font-size: clamp(15px, 2vw, 17px); line-height: 1.75; }
@@ -365,6 +365,7 @@ a { color: inherit; }
   .welcome-page { grid-template-columns: 1fr; width: min(100% - 32px, 620px); padding-top: 20px; gap: 12px; }
   .welcome-top { padding-bottom: 10px; }
   .welcome-hero { padding-top: 18px; }
+  .welcome-eyebrow { font-size: 16px; letter-spacing: .04em; }
   .welcome-hero h1 { font-size: clamp(40px, 11vw, 60px); }
   .welcome-preview { margin-top: 8px; }
   .welcome-actions { flex-direction: column; align-items: stretch; }
