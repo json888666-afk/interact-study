@@ -18,12 +18,12 @@
 
 - 仓库地址：<https://github.com/json888666-afk/interact-study>
 - 默认分支：`main`
-- 版本标签：`v0.5.0`（`6868c2e`）、`v0.5.1`（当前 `main` HEAD）
+- 版本标签：`v0.5.0`（`6868c2e`）、`v0.5.1`（历史标签）；当前 `main` HEAD：`d6f9d7f` + 本次文档提交
 - 访问要求：**Public**，或给评审账号开通只读权限。
 - 提交前确认：
   - [x] GitHub 仓库已设为 Public（2026-11-13 验证；如需评审账号可另加 Collaborator）
-  - [ ] `origin/main` 已推送最新提交
-  - [ ] 本地 `.env`、`.local/`、数据库、测试截图未进入仓库
+  - [x] `origin/main` 已推送最新提交
+  - [x] 本地 `.env`、`.local/`、数据库、测试截图未进入仓库
 
 ## 三、细粒度 Git 提交历史
 
@@ -44,7 +44,16 @@
 | `6868c2e` | DeepSeek Prompt 链 07–09 + 本清单 + README 链接 |
 | `4463bd4` | 排行榜/我的试卷返回来源页 + 「个人设置」改名 |
 | `ada3e01` | 个人设置页增加返回上一页/返回首页 |
-| 本次文档提交 | 提交清单补充与 `v0.5.1` 版本记录 |
+| `ea33272` | 欢迎 gate、两步引导、品牌改名 |
+| `1d9c5c1` | 欢迎页抛物线预览可拖动 |
+| `0f2b9b1` | 学习首页、头像菜单、继续学习入口 |
+| `03e7a0b` / `4166140` / `788110b` | 继续学习紧凑条 → 导航胶囊 → 下拉浮层；首页左对齐 |
+| `c50fd03` / `7d35c15` / `f786005` | 首页输入区尺寸与首屏大输入 |
+| `f3b0bc8` / `bd3079e` | 练习通过徽章 → 奖章 + 书本 + 绶带 |
+| `f7f9348` | 上下文返回按钮 |
+| `e45eb8c` / `06f60f0` / `1b8f07a` | 导入试卷逐题分页、底部分页、详情去重 |
+| `d6f9d7f` | 知识点胶囊、1200 双栏、设置返回文案 |
+| 本次文档提交 | 10 文档、11-14 导出、截图、清单更新 |
 
 说明：
 
@@ -62,14 +71,16 @@
 | `02-revision-versions.md` | 对话修改与版本历史 |
 | `03-quiz-review.md` | 选择题与按需审核 |
 | `04-codex-transcript.md` | Codex 对话原文导出（完整 transcript） |
-| `05-prompt-chain-index.md` | 三条完整 Prompt 链索引 |
+| `05-prompt-chain-index.md` | 六条完整 Prompt 链索引 |
 | `06-photo-import-drafts.md` | 照片单次读取 + 草稿确认 |
 | `07-selection-and-conversion.md` | 题库选题、开放题转换、10 次初审循环、标签编辑 |
 | `08-markdown-and-tag-edit.md` | 照片导入、Markdown/KaTeX、标签“保存丢失输入”修复 |
 | `09-profile-goals-and-settings.md` | 年级/目标个性化、目标审核放宽、设置返回来源页 |
-| `exports/deepseek-session-2026-11-13.md` | DeepSeek Harness 原始会话导出（脱敏，含上述三个迭代） |
+| `10-learning-hub-quiz-badge-paper-library.md` | 学习中心/继续学习、练习通过徽章、试卷分页/宽屏/知识点胶囊、设置返回文案 |
+| `exports/deepseek-session-2026-11-13.md` | DeepSeek Harness 原始会话导出（脱敏，含 07–09 三个迭代） |
+| `exports/deepseek-session-2026-11-14.md` | 2026-11-13 10:44 至 11-14 的续接导出（脱敏，含 10 的三个迭代） |
 
-**至少 3 个核心迭代的完整 Prompt 链**：07、08、09 均包含：
+**至少 3 个核心迭代的完整 Prompt 链**：07、08、09、10 均包含：
 
 - 用户原话 Prompt；
 - AI 的诊断/修改建议；
@@ -78,11 +89,11 @@
 
 **AI 对话导出**：
 
-- 已从 DSH 原生 session v4 导出脱敏 transcript：`docs/ai-iterations/exports/deepseek-session-2026-11-13.md`，保留用户/AI 文本消息与完整的 `exit_plan_mode` 方案，省略 reasoning、工具输出和系统运行时消息；`sk-...` 已脱敏。
-- 若评审还需要更直观的截图/录屏，建议补以下三段（每段至少包含用户提问 + AI 修改建议 + 一次 Bug 修复）：
-  1. 「选出来的题目不符合知识点」→ 全量候选交 API；
-  2. 「添加知识点不生效、删除生效」→ TagForm 修复；
-  3. 「目标审核太严格 / 设置保存回首页」→ 放宽审核 + 返回来源页。
+- 已从 DSH 原生 session v4 导出两份脱敏 transcript：
+  - `docs/ai-iterations/exports/deepseek-session-2026-11-13.md`（07–09）；
+  - `docs/ai-iterations/exports/deepseek-session-2026-11-14.md`（2026-11-13 10:44 起，续接 10 的三个迭代）。
+  - 保留用户/AI 文本消息与完整的 `exit_plan_mode` 方案，省略 reasoning、工具输出和系统运行时消息；`sk-...`、本机路径、邮箱、演示账号已脱敏。
+- 关键界面截图已归档到 `docs/ai-iterations/assets/2026-11-14/`：欢迎 gate、欢迎庆祝、继续学习浮层、知识徽章、试卷宽屏、设置返回排行榜。
 - 截图/录屏中不要露出 API Key、账号密码、私有试卷原文。
 
 ## 五、其他交付物
@@ -91,18 +102,18 @@
 | --- | --- | --- |
 | 公开仓库 | Public 或评审访问 | ✅ 已公开（2026-11-13 验证） |
 | 细粒度 commit | 每次对应 AI 对话/功能模块 | 已按上表拆分 |
-| Prompt 链 | ≥3 个核心迭代 | 07–09 已写 |
-| AI 对话导出/截图 | 导出或截图/录屏 | 待补截图/录屏（用户操作） |
+| Prompt 链 | ≥3 个核心迭代 | 07–09、10 已写（六条索引） |
+| AI 对话导出/截图 | 导出或截图/录屏 | ✅ 11-13/11-14 导出 + 2026-11-14 截图资产 |
 | README | 启动、功能、验证、AI 记录 | 本次更新链接 |
 | 演示视频 | 5–8 分钟、1080p、含 ≥2 分钟 AI 协作 | 待录制（用户操作） |
 | PDF | ≤30 页 | 待整理（用户操作） |
 
 ## 六、安全与隐私
 
-- [ ] `.env` 未提交，仓库中无 API Key；
-- [ ] 测试/截图不包含真实账号、密码、私有试卷原文；
+- [x] `.env` 未提交，仓库中无 API Key；
+- [x] 测试/截图不包含真实账号、密码、私有试卷原文；
 - [ ] 曾在聊天中出现的 API Key 已在 DeepSeek 控制台轮换；
-- [ ] `.local/`、`*.sqlite3`、`test-results/`、`playwright-report/` 均被 `.gitignore` 覆盖。
+- [x] `.local/`、`*.sqlite3`、`test-results/`、`playwright-report/` 均被 `.gitignore` 覆盖。
 
 ## 七、最终验证命令
 
@@ -113,4 +124,4 @@ $env:BROWSER_QUIZ_DB_PATH = '.local/browser-quiz-' + [Guid]::NewGuid().ToString(
 npm.cmd run test:browser
 ```
 
-预期：构建通过、后端 71 项通过、浏览器 19 项通过；`git status` 除本地截图目录外干净。
+预期：构建通过、后端 72 项通过、浏览器 22 项通过；`git status` 除本地截图目录外干净。
