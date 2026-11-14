@@ -148,6 +148,19 @@ def exam_start(client):
     return owner, path, client.get(path, headers=owner).json()
 
 
+def test_exam_selection_samples_candidates(client, exam_upstream, monkeypatch):
+    calls = []
+
+    def recording(items, limit=16):
+        calls.append(len(items))
+        return list(items)[:limit]
+
+    monkeypatch.setattr("backend.exams.sample_candidates", recording)
+    _, _, quiz = exam_start(client)
+    assert quiz["status"] == "ready"
+    assert calls and calls[0] > 0
+
+
 def test_exam_counts_and_source_after_answer(client, exam_upstream):
     owner, path, quiz = exam_start(client)
     assert quiz["status"] == "ready", quiz["message"]

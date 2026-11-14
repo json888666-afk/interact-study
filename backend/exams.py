@@ -17,6 +17,7 @@ from .goals import ExamTarget
 from .model import GenerationError, ModelSettings, request_json
 from .quiz_models import Draft, MAIN_PAST_TARGET, MAIN_SIMULATED_TARGET, OptionIndex, Question, initial_review
 from .schemas import StrictModel, bounded_text
+from .selection import sample_candidates
 
 @dataclass
 class ExamSource:
@@ -393,6 +394,7 @@ async def find_exam_questions(target: ExamTarget | None, context, client, *, cou
 
 
 async def select_questions(client, settings, candidates, context, target, count, replacement):
+    candidates = sample_candidates(candidates)
     material = {"exam": target.model_dump() if target else None,
                 "lesson": {"question": context.question, "title": context.lesson.title, "summary": context.lesson.summary}}
     scope = {"count": count, "required_topic": replacement["topic"] if replacement else None}
@@ -438,6 +440,7 @@ async def select_questions(client, settings, candidates, context, target, count,
 
 
 async def select_open_questions(client, settings, candidates, context):
+    candidates = sample_candidates(candidates)
     inputs = [{"candidate": index, "stem": item["stem"], "tags": item.get("tags") or []}
               for index, (_, item) in enumerate(candidates)]
     material = {"context": {"question": context.question, "title": context.lesson.title,

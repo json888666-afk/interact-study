@@ -12,3 +12,8 @@ def quiz_database(monkeypatch):
         path = Path(directory) / "quiz.sqlite3"
         monkeypatch.setenv("QUIZ_DB_PATH", str(path))
         yield path
+
+
+@pytest.fixture(autouse=True)
+def stable_candidate_sampling(monkeypatch):
+    monkeypatch.setattr("backend.exams.sample_candidates", lambda items, limit=16: list(items)[:limit])
