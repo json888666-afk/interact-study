@@ -287,13 +287,13 @@ export function Leaderboard({ guest }: { guest: boolean }) {
           {!data.entries.length
             ? <p className="rank-empty">还没有人上榜，完成第一次练习就能成为第一名。</p>
             : !!listEntries.length && <table>
-              <thead><tr><th scope="col">名次</th><th scope="col">学习者</th><th scope="col">积分</th></tr></thead>
+              <thead><tr><th scope="col">名次</th><th scope="col" className="rank-learners">学习者</th><th scope="col">积分</th></tr></thead>
               <tbody>{listEntries.map((entry) => {
                 const mine = entry.username === data.me?.username
                 const avatar = avatarFor(entry.username)
                 return <tr key={entry.username} className={mine ? 'rank-current-user' : undefined}>
                   <td>{entry.rank}</td>
-                  <td><span className="rank-user">
+                  <td className="rank-learners"><span className="rank-user">
                     <span className="rank-avatar" style={{ background: avatar.color }} aria-hidden="true">{avatar.label}</span>
                     <span>{entry.username}</span>
                     {mine && <span className="rank-you">你</span>}

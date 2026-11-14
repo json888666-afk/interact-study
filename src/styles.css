@@ -89,6 +89,8 @@ a { color: inherit; }
 .rankings table { width: 100%; border-collapse: collapse; text-align: center; }
 .rankings th, .rankings td { border-bottom: 1px solid var(--line); padding: 12px 8px; }
 .rankings th { color: var(--ink); font-size: 14px; font-weight: 650; text-align: center; padding: 12px 8px 14px; }
+.rankings th.rank-learners, .rankings td.rank-learners { text-align: left; }
+.rankings .rank-learners .rank-user { justify-content: flex-start; }
 .rankings th:first-child, .rankings td:first-child { width: 80px; }
 .rankings th:last-child, .rankings td:last-child { width: 100px; }
 .rankings tbody tr:last-child td { border-bottom: 0; }
