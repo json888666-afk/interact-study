@@ -1,4 +1,4 @@
-# 六条核心功能的完整 Prompt 链
+# 十条核心功能的完整 Prompt 链
 
 打开链接可逐条阅读原文。各链的摘要、提交与复测依据为编制参赛材料时补录。
 
@@ -37,3 +37,32 @@
 - [完整 Prompt 链](10-learning-hub-quiz-badge-paper-library.md#迭代三导入试卷逐题分页详情去重与宽屏)：逐题分页、只留底部分页、详情嵌入试卷项、知识点胶囊、1200 双栏、上下文返回文案。
 - 对应提交：`e45eb8c`、`06f60f0`、`1b8f07a`、`d6f9d7f`。
 - 证据：`paper-wide.png`、`back-from-leaderboard.png`；22 项浏览器测试。
+
+## 7. 主练习 10 题与 2:8 真题/模拟
+
+- [完整 Prompt 链](11-practice-ten-question-mix.md)：10 题、2 真题 + 8 模拟、真题不足自动补齐、个人题库优先。
+- 对应提交：`43f17e5`、`8df71d9`。
+- 证据：`pytest -q` 77 项、`npm run test:browser` 23 项；真实 API 访客练习返回 10 题。
+
+## 8. 按反馈重新生成一批题
+
+- [完整 Prompt 链](12-feedback-regeneration.md)：整批反馈、保留知识点、排除旧题、报告前可换、不限制次数。
+- 对应提交：`27e6152`。
+- 证据：`tests/test_learning_quiz.py` 的反馈链路；`tests/browser/learning-loop.spec.ts` 的表单与重新渲染。
+
+## 9. 候选题随机抽样后再核验
+
+- [完整 Prompt 链](13-random-candidate-selection.md)：题库/联网候选先随机抽样最多 16 道，再交给模型核验。
+- 对应提交：`072fd76`。
+- 证据：`backend/selection.py`、`tests/test_selection.py`、`test_exam_selection_samples_candidates`。
+
+## 10. 排行榜与欢迎页视觉层级
+
+- [完整 Prompt 链](14-leaderboard-and-welcome-hierarchy.md)：金银铜奖牌、相对榜首进度条、固定名字列、用户名 2–16、欢迎页 eyebrow 与交互演示标签字号。
+- 对应提交：`d77f8c0`、`bff9371`、`d11c2ba`、`006cb2a`、`b7c277d`、`58a08d2`、`d67dc81`、`6f34ade`。
+- 证据：`assets/2026-11-14/leaderboard-progress.png`、`welcome-eyebrow.png`、`preview-labels.png`；23 项浏览器测试。
+
+## 对话原文
+
+- [2026-11-14 练习改造 Prompt 历史快照](exports/dsh-session-2026-11-14-practice-redesign.md)
+- [2026-11-14 学习中心/徽章/试卷导出](exports/deepseek-session-2026-11-14.md)

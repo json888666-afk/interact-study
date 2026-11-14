@@ -103,7 +103,7 @@ API 测试使用模拟上游。浏览器测试用确定性题材验证二次函�
 > 项目现已更名为「可视化理论中心」；以下历史记录中的「演算室」为原名。
 
 - [Codex 对话原文导出](docs/ai-iterations/04-codex-transcript.md) · 按时间排列的用户与 AI 可见消息
-- [六条完整 Prompt 链](docs/ai-iterations/05-prompt-chain-index.md) · 用户修复指导、实现提交与复测入口
+- [十条完整 Prompt 链](docs/ai-iterations/05-prompt-chain-index.md) · 用户修复指导、实现提交与复测入口
 - [动态生成与隔离预览](docs/ai-iterations/01-lesson-preview.md) · 原始对话与验收
 - [对话修改与版本管理](docs/ai-iterations/02-revision-versions.md) · 设计原文与实施验证
 - [选择题与按需审核](docs/ai-iterations/03-quiz-review.md) · 设计决策与实施验证
@@ -112,6 +112,12 @@ API 测试使用模拟上游。浏览器测试用确定性题材验证二次函�
 - [Markdown 与标签编辑](docs/ai-iterations/08-markdown-and-tag-edit.md) · 可读性修复与「保存丢失输入」
 - [年级、目标与设置](docs/ai-iterations/09-profile-goals-and-settings.md) · 个性化、审核放宽、返回来源页
 - [学习中心、练习徽章与导入试卷库](docs/ai-iterations/10-learning-hub-quiz-badge-paper-library.md) · 欢迎/继续学习、知识徽章、逐题分页、宽屏与胶囊
+- [主练习 10 题与 2:8 真题/模拟](docs/ai-iterations/11-practice-ten-question-mix.md) · 题量、真题补齐、个人题库优先
+- [按反馈重新生成一批练习题](docs/ai-iterations/12-feedback-regeneration.md) · 整批反馈、排除旧题、不限制次数
+- [候选题随机抽样后再核验](docs/ai-iterations/13-random-candidate-selection.md) · 最多 16 道候选、SystemRandom、测试替身
+- [排行榜与欢迎页视觉层级](docs/ai-iterations/14-leaderboard-and-welcome-hierarchy.md) · 金银铜奖牌、进度条、固定名字列、字号
 - [DeepSeek 会话导出 2026-11-13（脱敏）](docs/ai-iterations/exports/deepseek-session-2026-11-13.md) · 07–09 原始用户/AI 对话与完整 exit_plan_mode 方案
 - [DeepSeek 会话导出 2026-11-14（脱敏）](docs/ai-iterations/exports/deepseek-session-2026-11-14.md) · 2026-11-13 10:44 起续接 10 的原始 Prompt/AI 回复与方案
+- [DSH 练习改造 Prompt 快照 2026-11-14](docs/ai-iterations/exports/dsh-session-2026-11-14-practice-redesign.md) · 10 题、反馈重出题、随机候选、视觉层级
+- [竞赛 2.1 仓库与 AI 演进记录](docs/competition/2.1-repository-and-ai-history.md) · 仓库、细粒度提交、Prompt 链对照
 - [竞赛提交清单](docs/competition/submission-checklist.md) · 仓库、提交、Prompt 链自查
