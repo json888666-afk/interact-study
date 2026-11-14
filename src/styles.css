@@ -345,8 +345,8 @@ a { color: inherit; }
 .welcome-preview { align-self: center; display: flex; justify-content: center; }
 .preview-card { position: relative; width: min(100%, 380px); padding: 18px; border: 1px solid var(--line); border-radius: 24px; background: #fffdf8; box-shadow: 0 24px 60px #203d2414; }
 .preview-card::before { content: ""; position: absolute; inset: -24px -18px auto; height: 120px; border-radius: 50%; background: radial-gradient(closest-side, #d9ead922, transparent); z-index: -1; }
-.preview-head { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; }
-.preview-chip { padding: 2px 8px; border-radius: 999px; background: #e7f0e6; color: var(--green); font-weight: 600; }
+.preview-head { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 14px; }
+.preview-chip { padding: 2px 8px; border-radius: 999px; background: #e7f0e6; color: var(--green); font-size: 13px; font-weight: 600; }
 .preview-graph { position: relative; margin: 12px 0 10px; padding: 8px; border-radius: 16px; background: #f8f6ee; }
 .preview-graph svg { display: block; width: 100%; height: auto; }
 .preview-graph line { stroke: #b6c6b6; stroke-width: 1.2; }
