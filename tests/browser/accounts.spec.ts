@@ -112,7 +112,7 @@ test('guest leaderboard invitation supports browsing, registration and ordinary 
   await invite.getByRole('button', { name: '继续浏览' }).click()
   await expect(page.getByRole('heading', { name: '排行榜' })).toBeFocused()
   await page.getByRole('button', { name: '下一页' }).click()
-  await expect(page.getByRole('row', { name: /小张/ })).toBeVisible()
+  await expect(page.locator('.rank-row').filter({ hasText: '小张' })).toBeVisible()
   await expect(invite).toHaveCount(0)
 
   await page.getByRole('button', { name: '← 返回首页' }).click()

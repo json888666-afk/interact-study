@@ -233,6 +233,9 @@ def leaderboard(user: User, page: Annotated[int, Query(ge=1, le=LEADERBOARD_LIMI
             SELECT username, points, rank FROM rankings
             WHERE position <= ? ORDER BY position LIMIT ? OFFSET ?
         """, (LEADERBOARD_LIMIT, PAGE_SIZE + 1, (page - 1) * PAGE_SIZE)).fetchall()
+        top_points = connection.execute(
+            RANKINGS + "SELECT COALESCE(MAX(points), 0) AS top_points FROM rankings",
+        ).fetchone()["top_points"]
         mine = connection.execute(
             RANKINGS + "SELECT username, points, rank, position FROM rankings WHERE id = ?", (user["id"],),
         ).fetchone() if user else None
@@ -244,5 +247,5 @@ def leaderboard(user: User, page: Annotated[int, Query(ge=1, le=LEADERBOARD_LIMI
         )
     return {
         "page": page, "has_more": len(rows) > PAGE_SIZE, "entries": [dict(row) for row in rows[:PAGE_SIZE]],
-        "me": my_rank,
+        "me": my_rank, "top_points": top_points,
     }

@@ -217,6 +217,7 @@ def test_leaderboard_paginates_and_ranks_ties(client):
     last = client.get("/api/leaderboard?page=10").json()
     assert len(first["entries"]) == 10 and first["has_more"]
     assert first["entries"][:2] == DEMO_RANKS
+    assert first["top_points"] == max(entry["points"] for entry in first["entries"])
     assert [entry["rank"] for entry in first["entries"][2:5]] == [3, 3, 5]
     assert len(last["entries"]) == 10 and not last["has_more"]
     assert last["entries"][-1] == {"username": "learner097", "rank": 5, "points": 1}

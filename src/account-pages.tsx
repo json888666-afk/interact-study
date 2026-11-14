@@ -186,7 +186,7 @@ function returnFromLeaderboard() {
 }
 
 type Rank = { username: string; points: number; rank: number }
-type Rankings = { entries: Rank[]; has_more: boolean; me: (Rank & { listed_page: number | null }) | null }
+type Rankings = { entries: Rank[]; has_more: boolean; me: (Rank & { listed_page: number | null }) | null; top_points?: number }
 
 const AVATAR_COLORS = ['#0c654b', '#7a5a3a', '#506b8c', '#8a4b5d', '#5e7448', '#6b5b8a']
 
@@ -238,6 +238,7 @@ export function Leaderboard({ guest }: { guest: boolean }) {
   const backTo = safeReturnLocation(new URLSearchParams(window.location.search).get('from')) ?? '/'
   const showPodium = page === 1 && !!data && data.entries.length >= 3
   const listEntries = data ? (showPodium ? data.entries.slice(3) : data.entries) : []
+  const topPoints = data?.top_points ?? data?.entries[0]?.points ?? 0
 
   return (
     <main className="page account-page">
@@ -286,22 +287,29 @@ export function Leaderboard({ guest }: { guest: boolean }) {
           </ol>}
           {!data.entries.length
             ? <p className="rank-empty">还没有人上榜，完成第一次练习就能成为第一名。</p>
-            : !!listEntries.length && <table>
-              <thead><tr><th scope="col">名次</th><th scope="col" className="rank-learners">学习者</th><th scope="col">积分</th></tr></thead>
-              <tbody>{listEntries.map((entry) => {
+            : !!listEntries.length && <ul className="rank-list" aria-label="学习者排名">
+              {listEntries.map((entry) => {
                 const mine = entry.username === data.me?.username
                 const avatar = avatarFor(entry.username)
-                return <tr key={entry.username} className={mine ? 'rank-current-user' : undefined}>
-                  <td>{entry.rank}</td>
-                  <td className="rank-learners"><span className="rank-user">
-                    <span className="rank-avatar" style={{ background: avatar.color }} aria-hidden="true">{avatar.label}</span>
-                    <span>{entry.username}</span>
-                    {mine && <span className="rank-you">你</span>}
-                  </span></td>
-                  <td className="rank-points">{entry.points}</td>
-                </tr>
-              })}</tbody>
-            </table>}
+                const percent = topPoints > 0 && entry.points > 0
+                  ? Math.min(100, Math.max(2, Math.round(entry.points / topPoints * 100)))
+                  : 0
+                return <li key={entry.username} className={`rank-row${mine ? ' rank-current-user' : ''}`}>
+                  <span className="rank-place">{entry.rank}</span>
+                  <span className="rank-learner">
+                    <span className="rank-user">
+                      <span className="rank-avatar" style={{ background: avatar.color }} aria-hidden="true">{avatar.label}</span>
+                      <span className="rank-name">{entry.username}</span>
+                      {mine && <span className="rank-you">你</span>}
+                    </span>
+                    <span className="rank-bar" aria-hidden="true" title={`${entry.points} / ${topPoints} 分`}>
+                      <i style={{ width: `${percent}%` }} />
+                    </span>
+                  </span>
+                  <span className="rank-score">{entry.points}<small>分</small></span>
+                </li>
+              })}
+            </ul>}
           {(page > 1 || data.has_more) && <div className="rank-pages">
             <button className="quiet-button" type="button" disabled={page === 1} onClick={() => setPage(page - 1)}>上一页</button>
             <span>第 {page} 页</span>
