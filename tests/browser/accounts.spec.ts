@@ -88,10 +88,11 @@ test('registration, account switching, guest recovery and leaderboard', async ({
   await expect(page.getByRole('heading', { name: '今天想弄懂什么？' })).toBeVisible()
   await page.getByRole('link', { name: '排行榜', exact: true }).click()
   await expect(page.getByRole('heading', { name: '排行榜', exact: true })).toBeVisible()
-  await expect(page.getByText(/当前排名.*第 3 名.*我的积分.*0/)).toBeVisible()
-  await expect(page.getByRole('row').filter({ hasText: alice })).toHaveClass('rank-current-user')
-  await expect(page.getByRole('row').filter({ hasText: '小王' })).toContainText('5')
-  await expect(page.getByRole('row').filter({ hasText: '小明' })).toContainText('3')
+  await expect(page.getByText(/我的排名.*第 3 名.*0.*分/)).toBeVisible()
+  const podiumItems = page.locator('.rank-podium-item')
+  await expect(podiumItems.filter({ hasText: alice })).toHaveClass(/rank-current-user/)
+  await expect(podiumItems.filter({ hasText: '小王' })).toContainText('5')
+  await expect(podiumItems.filter({ hasText: '小明' })).toContainText('3')
 })
 
 test('guest leaderboard invitation supports browsing, registration and ordinary login return', async ({ page }) => {

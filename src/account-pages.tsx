@@ -188,6 +188,15 @@ function returnFromLeaderboard() {
 type Rank = { username: string; points: number; rank: number }
 type Rankings = { entries: Rank[]; has_more: boolean; me: (Rank & { listed_page: number | null }) | null }
 
+const AVATAR_COLORS = ['#0c654b', '#7a5a3a', '#506b8c', '#8a4b5d', '#5e7448', '#6b5b8a']
+
+function avatarFor(username: string) {
+  const chars = Array.from(username.trim() || '?')
+  const label = (chars[0] ?? '?').toUpperCase()
+  const sum = chars.reduce((total, char) => total + (char.codePointAt(0) ?? 0), 0)
+  return { label, color: AVATAR_COLORS[sum % AVATAR_COLORS.length] }
+}
+
 function GuestLeaderboardNotice({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -227,6 +236,8 @@ export function Leaderboard({ guest }: { guest: boolean }) {
 
   const myPage = data?.me?.listed_page
   const backTo = safeReturnLocation(new URLSearchParams(window.location.search).get('from')) ?? '/'
+  const showPodium = page === 1 && !!data && data.entries.length >= 3
+  const listEntries = data ? (showPodium ? data.entries.slice(3) : data.entries) : []
 
   return (
     <main className="page account-page">
@@ -239,25 +250,53 @@ export function Leaderboard({ guest }: { guest: boolean }) {
           <button className="rank-back" type="button" onClick={returnFromLeaderboard}>← {returnLabel(backTo)}</button>
         </nav>
         <h1 ref={heading} tabIndex={-1}>排行榜</h1>
-        <p>每通过一个学习会话可得 1 分。正确率达到 90% 即通过。</p>
+        <p className="rank-sub">完成一次练习并达到 90%，就能留下 1 分。</p>
         {error && <p role="alert">{error} <button type="button" className="quiet-button" onClick={() => setAttempt(attempt + 1)}>重试</button></p>}
         {!data && !error && <p role="status">正在加载排行榜…</p>}
         {data && <>
-          {data.me && <p className="rank-self">
-            当前排名 <strong>第 {data.me.rank} 名</strong>
-            {data.me.listed_page !== null && <> · 我的积分 <strong>{data.me.points}</strong></>}
-            {typeof myPage === 'number' && myPage !== page &&
-              <button className="quiet-button" type="button" onClick={() => setPage(myPage)}>查看我的名次</button>}
-          </p>}
-          {data.entries.length ? <table>
-            <thead><tr><th scope="col">名次</th><th scope="col">用户名</th><th scope="col">积分</th></tr></thead>
-            <tbody>{data.entries.map((entry) => {
+          {data.me && <div className="rank-self">
+            <div className="rank-self-main">
+              <span className="rank-self-kicker">我的排名</span>
+              <strong>第 {data.me.rank} 名</strong>
+            </div>
+            <div className="rank-self-side">
+              {data.me.listed_page !== null
+                ? <span><strong>{data.me.points}</strong> 分</span>
+                : <span className="rank-self-muted">暂未上榜</span>}
+              {typeof myPage === 'number' && myPage !== page &&
+                <button className="quiet-button" type="button" onClick={() => setPage(myPage)}>查看我的名次</button>}
+            </div>
+          </div>}
+          {showPodium && <ol className="rank-podium" aria-label="前三名">
+            {data.entries.slice(0, 3).map((entry) => {
               const mine = entry.username === data.me?.username
-              return <tr key={entry.username} className={mine ? 'rank-current-user' : undefined}>
-                <td>{entry.rank}</td><td>{entry.username}{mine && <span className="rank-you">你</span>}</td><td>{entry.points}</td>
-              </tr>
-            })}</tbody>
-          </table> : <p>本页暂无上榜用户。</p>}
+              const avatar = avatarFor(entry.username)
+              return <li key={entry.username} className={`rank-podium-item${mine ? ' rank-current-user' : ''}`}>
+                <span className={`rank-medal rank-medal-${entry.rank}`}>{entry.rank}</span>
+                <span className="rank-avatar rank-avatar-podium" style={{ background: avatar.color }} aria-hidden="true">{avatar.label}</span>
+                <span className="rank-podium-name">{entry.username}{mine && <span className="rank-you">你</span>}</span>
+                <span className="rank-podium-points">{entry.points}<small>分</small></span>
+              </li>
+            })}
+          </ol>}
+          {!data.entries.length
+            ? <p className="rank-empty">还没有人上榜，完成第一次练习就能成为第一名。</p>
+            : !!listEntries.length && <table>
+              <thead><tr><th scope="col">名次</th><th scope="col">学习者</th><th scope="col">积分</th></tr></thead>
+              <tbody>{listEntries.map((entry) => {
+                const mine = entry.username === data.me?.username
+                const avatar = avatarFor(entry.username)
+                return <tr key={entry.username} className={mine ? 'rank-current-user' : undefined}>
+                  <td>{entry.rank}</td>
+                  <td><span className="rank-user">
+                    <span className="rank-avatar" style={{ background: avatar.color }} aria-hidden="true">{avatar.label}</span>
+                    <span>{entry.username}</span>
+                    {mine && <span className="rank-you">你</span>}
+                  </span></td>
+                  <td className="rank-points">{entry.points}</td>
+                </tr>
+              })}</tbody>
+            </table>}
           {(page > 1 || data.has_more) && <div className="rank-pages">
             <button className="quiet-button" type="button" disabled={page === 1} onClick={() => setPage(page - 1)}>上一页</button>
             <span>第 {page} 页</span>
