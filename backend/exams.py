@@ -15,7 +15,7 @@ from .exam_discovery import (
 )
 from .goals import ExamTarget
 from .model import GenerationError, ModelSettings, request_json
-from .quiz_models import Draft, OptionIndex, Question, initial_review
+from .quiz_models import Draft, MAIN_PAST_TARGET, MAIN_SIMULATED_TARGET, OptionIndex, Question, initial_review
 from .schemas import StrictModel, bounded_text
 
 @dataclass
@@ -75,7 +75,7 @@ class ExamUnavailable(Exception):
 
 
 def exam_counts(mode=None):
-    return (3, 7) if (mode or os.getenv("EXAM_QUIZ_MODE")) == "standard" else (1, 1)
+    return (MAIN_PAST_TARGET, MAIN_SIMULATED_TARGET)
 
 
 def exam_settings():
@@ -384,6 +384,8 @@ async def find_exam_questions(target: ExamTarget | None, context, client, *, cou
                 raise ExamUnavailable("找到了公开试卷，但暂未核实可用于本次练习的题干、选项和答案。", papers)
             questions = await select_questions(client, settings, candidates, context, target, count, replacement)
             if len(questions) != count:
+                if questions and count > 1:
+                    return questions
                 raise ExamUnavailable(f"通过来源、原文和初审核验的真题不足 {count} 道。", papers)
             return questions
     except (httpx.HTTPError, TimeoutError, ValidationError, ValueError, GenerationError) as error:

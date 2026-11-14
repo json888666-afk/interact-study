@@ -148,12 +148,10 @@ def exam_start(client):
     return owner, path, client.get(path, headers=owner).json()
 
 
-@pytest.mark.parametrize(("mode", "past_count", "simulated_count"), [("debug", 1, 1), ("standard", 3, 7)])
-def test_exam_counts_and_source_after_answer(client, exam_upstream, monkeypatch, mode, past_count, simulated_count):
-    monkeypatch.setenv("EXAM_QUIZ_MODE", mode)
+def test_exam_counts_and_source_after_answer(client, exam_upstream):
     owner, path, quiz = exam_start(client)
     assert quiz["status"] == "ready", quiz["message"]
-    assert [item["origin"] for item in quiz["questions"]] == ["past"] * past_count + ["simulated"] * simulated_count
+    assert [item["origin"] for item in quiz["questions"]] == ["past"] * 2 + ["simulated"] * 8
     first = quiz["questions"][0]
     assert first["stem"] == "计算 2**2。" and first["options"] == ["4", "3", "2"]
     assert first["source"]["number"] == "1" and "url" not in first["source"]
@@ -171,19 +169,18 @@ def test_exam_counts_and_source_after_answer(client, exam_upstream, monkeypatch,
 
 
 def test_knowledge_goal_does_not_search_online(client, exam_upstream, monkeypatch):
-    monkeypatch.setenv("EXAM_QUIZ_MODE", "standard")
     exam_upstream.update(knowledge=True, paper=ORIGINAL.replace(TITLE, TITLE.replace("成都", "北京")))
     update = client.post("/api/auth/profile", json={"education_stage": "初中", "goal": "学懂二次函数"})
     assert update.status_code == 200
     _, _, quiz = exam_start(client)
     assert quiz["status"] == "ready" and "exam" not in quiz
-    assert [item["origin"] for item in quiz["questions"]] == ["simulated", "simulated"]
+    assert [item["origin"] for item in quiz["questions"]] == ["simulated"] * 10
     searches = [data["query"] for path, data in exam_upstream["calls"] if path.endswith("/search")]
     assert searches == []
 
 
 @pytest.mark.parametrize("reason", ["missing", "incorrect", "rewrite", "permission", "restricted", "wrong_region", "timeout"])
-def test_exam_fallback_requires_choice(client, exam_upstream, reason):
+def test_exam_fallback_fills_with_simulated(client, exam_upstream, reason):
     if reason == "missing":
         exam_upstream["paper"] = "搜索摘要不含核准试卷原文"
     elif reason == "permission":
@@ -195,15 +192,9 @@ def test_exam_fallback_requires_choice(client, exam_upstream, reason):
     else:
         exam_upstream[reason] = True
     owner, path, quiz = exam_start(client)
-    assert quiz["status"] == "exam_choice" and quiz["questions"] == []
-    assert [item["url"] for item in quiz.get("public_papers", [])] == (
-        [PAPER] if reason in {"incorrect", "rewrite", "permission", "restricted"} else [])
-    assert client.post(path + "/exam-choice", headers=owner, json={"action": "retry"}).status_code == 202
-    assert client.get(path, headers=owner).json()["status"] == "exam_choice"
-    assert client.post(path + "/exam-choice", headers=owner, json={"action": "simulated"}).status_code == 202
-    updated = client.get(path, headers=owner).json()
-    assert updated["status"] == "ready"
-    assert [item["origin"] for item in updated["questions"]] == ["simulated", "simulated"]
+    assert quiz["status"] == "ready", quiz["message"]
+    assert [item["origin"] for item in quiz["questions"]] == ["simulated"] * 10
+    assert quiz.get("public_papers", []) == []
 
 
 @pytest.mark.parametrize("change", [None, "order", "formula", "answer"])
@@ -219,13 +210,16 @@ def test_image_exam_needs_two_agreeing_reads(client, exam_upstream, change):
     if change is None:
         assert quiz["status"] == "ready" and quiz["questions"][0]["origin"] == "past"
     else:
-        assert quiz["status"] == "exam_choice" and quiz["public_papers"][0]["url"] == PAPER
+        assert quiz["status"] == "ready"
+        assert [item["origin"] for item in quiz["questions"]] == ["simulated"] * 10
 
 
 def test_disputed_past_question_requires_confirmation_for_simulated_replacement(client, exam_upstream):
     exam_upstream["paper"] = ORIGINAL.split("2. 计算")[0]
     owner, path, quiz = exam_start(client)
-    first, second = quiz["questions"]
+    assert quiz["status"] == "ready"
+    first = next(item for item in quiz["questions"] if item["origin"] == "past")
+    second = next(item for item in quiz["questions"] if item["origin"] == "simulated")
     client.post(f"{path}/questions/{second['id']}/answer", headers=owner, json={"selected": [0, 1]})
     challenge = f"{path}/questions/{first['id']}/challenge"
     objection = {"objection": "题意不够清楚"}
@@ -235,5 +229,6 @@ def test_disputed_past_question_requires_confirmation_for_simulated_replacement(
     assert paused["questions"][0]["review"]["can_replace_simulated"]
     assert client.post(challenge, headers=owner, json=objection | {"allow_simulated": True}).status_code == 202
     updated = client.get(path, headers=owner).json()
-    assert updated["questions"][0]["origin"] == "simulated" and updated["questions"][0]["id"] != first["id"]
-    assert updated["questions"][1]["answer"]["is_correct"]
+    replaced = next(item for item in updated["questions"] if item["id"] != first["id"] and item["origin"] == "simulated")
+    assert replaced["origin"] == "simulated"
+    assert next(item for item in updated["questions"] if item["id"] == second["id"])["answer"]["is_correct"]

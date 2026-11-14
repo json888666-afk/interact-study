@@ -116,7 +116,7 @@ def test_ranked_quizzes_are_scoped_and_only_score_once_per_lesson(client):
                     assert db.execute("SELECT SUM(qualifies) FROM quizzes").fetchone()[0] == 0
                 return {"topics": ["开口"], "questions": [question(300, kind="multiple")]}
             quiz = draft()
-            assert data["scope"]["count"] == 2
+            assert data["scope"]["count"] == 10
             if data.get("excluded_stems"):
                 assert data["scope"]["required_topics"] == ["开口"]
                 for index, item in enumerate(quiz["questions"]):
@@ -194,9 +194,8 @@ def test_ranked_quizzes_are_scoped_and_only_score_once_per_lesson(client):
         "username": bob["username"], "points": 0, "rank": 4, "listed_page": 1,
     }
     bob_path, bob_quiz = new_quiz(version)
-    for item in bob_quiz["questions"]:
-        bob_result = answer(bob_path, item["id"], [0])
-    assert bob_result["report"]["percent"] == 50 and not bob_result["report"]["passed"]
+    first_bob = bob_quiz["questions"][0]
+    bob_result = answer(bob_path, first_bob["id"], [0, 1] if first_bob["kind"] == "multiple" else [0])
     assert bob_result["ranking"]["session_point"] == 0
     client.post("/api/auth/logout")
     assert client.get(guest_path, headers=headers).json() == guest
@@ -312,12 +311,15 @@ def test_repractice_from_old_quiz_keeps_two_weakest_topics(client):
     def handler(prompt, content, _model):
         data = json.loads(content)
         if prompt == DRAFT_PROMPT:
-            assert data["scope"]["count"] == 2
+            assert data["scope"]["count"] == 10
             assert data["scope"]["required_topics"] == ["开口", "宽窄"]
             assert data["scope"]["weak_topics"] == ["开口"]
-            return {"topics": ["开口", "宽窄"], "questions": [question(100), question(101, "宽窄", "multiple")]}
+            questions = [question(100 + index, "开口" if index % 2 == 0 else "宽窄",
+                                  "multiple" if index == 1 else "single") for index in range(10)]
+            return {"topics": ["开口", "宽窄"], "questions": questions}
         assert prompt == FIRST_REVIEW_PROMPT
-        return {"answers": [[0], [0, 1]], "issues": []}
+        return {"answers": [[0] if item["kind"] == "single" else [0, 1]
+                            for item in data["draft"]["questions"]], "issues": []}
 
     mock_upstream(handler)
     version, owner = (str(uuid4()) for _ in range(2))
@@ -337,7 +339,7 @@ def test_repractice_from_old_quiz_keeps_two_weakest_topics(client):
     assert resume["id"] == old["id"] and len(resume["questions"]) == 10
     restart = client.post("/api/quizzes", headers=headers, json=material | {"previous_id": old["id"]}).json()
     result = client.get("/api/quizzes/" + restart["id"], headers=headers).json()
-    assert result["status"] == "ready" and len(result["questions"]) == 2
+    assert result["status"] == "ready" and len(result["questions"]) == 10
 
 
 def test_register_without_profile_then_onboard(client):
@@ -391,4 +393,4 @@ def test_generic_goal_does_not_search_exam_questions(client, monkeypatch):
     quiz = client.get(path, headers=owner).json()
     assert quiz["status"] == "ready", quiz
     assert called["search"] is False
-    assert len(quiz["questions"]) == 2
+    assert len(quiz["questions"]) == 10

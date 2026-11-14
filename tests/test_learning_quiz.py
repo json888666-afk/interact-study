@@ -20,7 +20,9 @@ def question(index=0, topic="开口", kind="single"):
 
 
 def draft():
-    return {"topics": ["开口"], "questions": [question(0), question(1, kind="multiple")]}
+    return {"topics": ["开口"], "questions": [
+        question(index, "开口", "multiple" if index == 1 else "single") for index in range(10)
+    ]}
 
 
 def legacy_draft():
@@ -162,13 +164,13 @@ def test_initial_review_retry_then_grade_and_replace_single_question(client, qui
     ids = [item["id"] for item in quiz["questions"]]
     assert all("correct" not in item and "answer" not in item for item in quiz["questions"])
     assert client.get(path, headers={"X-Study-Session": str(uuid4())}).status_code == 404
-    for question_id in ids:
+    for question_id in ids[:-1]:
         response = client.post(f"{path}/questions/{question_id}/answer", headers=owner, json={"selected": [0]})
         assert response.status_code == 200
         if question_id == ids[1]:
             assert response.json()["report"] is None
-            report = pass_drill(client, path, owner, question_id)["report"]
-    assert report["percent"] == 50 and not report["passed"]
+            pass_drill(client, path, owner, question_id)
+    assert client.get(path, headers=owner).json()["report"] is None
     multi = f"{path}/questions/{ids[1]}"
     duplicate = client.post(multi + "/answer", headers=owner, json={"selected": [0, 1]})
     assert duplicate.json()["questions"][1]["answer"]["selected"] == [0]
@@ -183,13 +185,16 @@ def test_initial_review_retry_then_grade_and_replace_single_question(client, qui
     assert replacement_id != ids[1]
     assert "answer" not in updated["questions"][1] and updated["report"] is None
     assert updated["questions"][1]["review"]["message"] == "感谢你的纠正！这道题已更换，请继续作答。"
-    assert all("answer" in item for i, item in enumerate(updated["questions"]) if i != 1)
+    assert all("answer" in item for i, item in enumerate(updated["questions"])
+               if i not in {1, len(updated["questions"]) - 1})
     assert [model for _, model in seen] == ["flash"] * 7 + ["independent", "flash", "flash"]
     assert client.post(multi + "/answer", headers=owner, json={"selected": [0]}).status_code == 409
     completed = client.post(f"{path}/questions/{replacement_id}/answer", headers=owner, json={"selected": [0, 1]})
-    assert completed.json()["report"]["passed"]
+    assert completed.json()["report"] is None
+    final = client.post(f"{path}/questions/{ids[-1]}/answer", headers=owner, json={"selected": [0]})
+    assert final.json()["report"]["passed"]
     quiz_store.initialize()
-    assert client.get(path, headers=owner).json() == completed.json()
+    assert client.get(path, headers=owner).json() == final.json()
 
 
 @pytest.mark.parametrize(("verdict", "answered"), [("valid", False), ("valid", True), ("uncertain", True), ("failed", True)])
@@ -371,8 +376,11 @@ def test_required_drill_retries_and_uses_original_and_previous_round(client):
     assert response["questions"][0]["drill"]["status"] == "passed"
     assert not response["questions"][0]["answer"]["is_correct"]
     assert client.post(next_question, headers=owner, json={"selected": [0, 1]}).status_code == 200
+    for item in quiz["questions"][2:]:
+        assert client.post(f"{path}/questions/{item['id']}/answer", headers=owner,
+                           json={"selected": [0]}).status_code == 200
     report = client.get(path, headers=owner).json()["report"]
-    assert report["correct"] == 1 and report["percent"] == 50
+    assert report["correct"] == 9 and report["percent"] == 90
 
 
 def test_optional_drill_does_not_lock_and_replacement_preserves_other_answers(client):

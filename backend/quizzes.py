@@ -15,7 +15,8 @@ from .goals import ExamTarget
 from .model import GenerationError, model_client
 from .papers import local_questions
 from .quiz_models import (
-    MAIN_QUESTION_COUNT, AnswerRequest, ChallengeRequest, QuizRequest, analyze_drill, build_drill, build_quiz, review_challenge,
+    MAIN_PAST_TARGET, MAIN_QUESTION_COUNT, AnswerRequest, ChallengeRequest, QuizRequest, analyze_drill, build_drill, build_quiz,
+    review_challenge,
 )
 from .schemas import StrictModel
 
@@ -51,7 +52,7 @@ def practice_scope(quiz):
         return None
     stats = (quiz["report"] or {}).get("topics", [])
     accuracy = {item["topic"]: item["correct"] / item["total"] for item in stats if item["total"]}
-    selected = sorted(topics, key=lambda topic: accuracy.get(topic, 1))[:MAIN_QUESTION_COUNT]
+    selected = sorted(topics, key=lambda topic: accuracy.get(topic, 1))[:2]
     return {"required_topics": selected, "weak_topics": [topic for topic in selected if accuracy.get(topic, 1) < 1]}
 
 
@@ -62,35 +63,25 @@ class ExamChoice(StrictModel):
 async def generate_job(owner, quiz_id, request, client, previous, excluded, profile, exam=None, account_id=None):
     try:
         past = []
-        simulated_count = None
         if exam:
-            if exam["simulated_only"]:
-                simulated_count = exam["past_count"] + exam["simulated_count"]
-            else:
+            if not exam["simulated_only"]:
                 target = ExamTarget.model_validate(exam["target"])
-                past = await practice_questions(account_id, target, request, client, count=exam["past_count"],
-                                                excluded=excluded, local_only=exam.get("local_only", False))
-                simulated_count = exam["simulated_count"] + exam["past_count"] - len(past)
+                past = await practice_questions(account_id, target, request, client, count=MAIN_PAST_TARGET,
+                                                excluded=excluded, local_only=exam.get("local_only", False), fallback=True)
         elif account_id:
-            try:
-                past = await practice_questions(account_id, None, request, client, count=1, excluded=excluded)
-            except ExamUnavailable:
-                pass
-            if past:
-                simulated_count = MAIN_QUESTION_COUNT - len(past)
+            past = await practice_questions(account_id, None, request, client, count=MAIN_PAST_TARGET, excluded=excluded)
+        simulated_count = MAIN_QUESTION_COUNT - len(past)
         draft = await build_quiz(request, client, previous=previous, profile=profile, simulated_count=simulated_count,
                                  past_questions=past, excluded=[*excluded, *(question["stem"] for question in past)])
         questions = past + [question.model_dump() | {"origin": "simulated"} for question in draft.questions]
         update = {"status": "ready", "message": "", "public_papers": [],
                   "topics": list(dict.fromkeys(q["topic"] for q in questions)),
                   "questions": [{"id": str(uuid4()), **question} for question in questions]}
-    except ExamUnavailable as error:
-        update = {"status": "exam_choice", "message": str(error), "public_papers": error.papers}
     except GenerationError as error:
-        update = {"status": "exam_choice" if exam else "failed", "message": str(error)}
+        update = {"status": "failed", "message": str(error)}
     except Exception:
         logger.exception("Quiz generation failed")
-        update = {"status": "exam_choice" if exam else "failed", "message": "出题服务暂时无法完成请求，请重试。"}
+        update = {"status": "failed", "message": "出题服务暂时无法完成请求，请重试。"}
     with store.database() as connection:
         connection.execute("BEGIN IMMEDIATE")
         try:
@@ -103,15 +94,21 @@ async def generate_job(owner, quiz_id, request, client, previous, excluded, prof
         store.save(connection, quiz)
 
 
-async def practice_questions(account, target, context, client, *, count, excluded=(), local_only=False, replacement=None):
+async def practice_questions(account, target, context, client, *, count, excluded=(), local_only=False, replacement=None,
+                             fallback=False):
     local = await local_questions(account, target, context, client, count=count, excluded=excluded,
                                  replacement=replacement) if account else []
     if len(local) == count or local_only:
         return local
     if target is None:
         return local
-    online = await find_exam_questions(target, context, client, count=count - len(local),
-                                       excluded=[*excluded, *(item["stem"] for item in local)], replacement=replacement)
+    try:
+        online = await find_exam_questions(target, context, client, count=count - len(local),
+                                           excluded=[*excluded, *(item["stem"] for item in local)], replacement=replacement)
+    except ExamUnavailable:
+        if fallback:
+            return local
+        raise
     return local + online
 
 

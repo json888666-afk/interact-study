@@ -99,7 +99,9 @@ class ChallengeReview(StrictModel):
 
 
 DRAFT = TypeAdapter(Draft)
-MAIN_QUESTION_COUNT = 2
+MAIN_QUESTION_COUNT = 10
+MAIN_PAST_TARGET = 2
+MAIN_SIMULATED_TARGET = 8
 FIRST_REVIEW = TypeAdapter(FirstReview)
 CHALLENGE_REVIEW = TypeAdapter(ChallengeReview)
 DRILL_ANALYSIS = TypeAdapter(DrillAnalysis)
@@ -245,19 +247,20 @@ async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, repla
         if replacement.get("points"):
             scope["required_points"] = replacement["points"]
     elif simulated_count is None:
-        scope = {"count": MAIN_QUESTION_COUNT, "kind": "恰好一道单选和一道多选"}
+        scope = {"count": MAIN_QUESTION_COUNT, "kind": "10 道选择题，至少包含一道单选和一道多选"}
         if previous:
             scope.update(previous)
     else:
         required = set()
-        scope = {"count": simulated_count, "style": "考试风格的原创模拟题"}
+        scope = {"count": simulated_count, "style": "紧扣当前教学内容的原创选择题"}
         if not past_questions:
             required = {"single", "multiple"}
             scope["required_kinds"] = sorted(required)
             if simulated_count == 1 and required:
                 scope["kind"] = next(iter(required))
         if previous:
-            scope["weak_topics"] = previous["required_topics"]
+            scope["required_topics"] = previous["required_topics"]
+            scope["weak_topics"] = previous.get("weak_topics", previous["required_topics"])
         if past_questions:
             scope["past_topics"] = sorted({question["topic"] for question in past_questions})
     material = context.model_dump(mode="json", exclude={"previous_id", "version_id"})
@@ -273,7 +276,7 @@ async def build_quiz(context, client: httpx.AsyncClient, *, previous=None, repla
                 valid = len(questions) == 1 and questions[0].topic == replacement["topic"] \
                     and questions[0].kind == replacement["kind"]
             elif simulated_count is None:
-                valid = len(questions) == MAIN_QUESTION_COUNT and {item.kind for item in questions} == {"single", "multiple"}
+                valid = len(questions) == MAIN_QUESTION_COUNT and {"single", "multiple"} <= {item.kind for item in questions}
                 if previous:
                     valid = valid and set(draft.topics) == set(previous["required_topics"])
             else:

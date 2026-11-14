@@ -40,7 +40,7 @@ export function WelcomeGate({ onGuest }: { onGuest: () => void }) {
     <section className="welcome-hero" aria-labelledby="welcome-title">
       <p className="welcome-eyebrow">AI 交互式学习 · 数学与计算机</p>
       <h1 id="welcome-title">把问题<span>动起来。</span></h1>
-      <p className="welcome-copy">输入一个问题，生成可以亲手拖动的教学页；看懂之后再练两道题。</p>
+      <p className="welcome-copy">输入一个问题，生成可以亲手拖动的教学页；看懂之后再练十道题。</p>
       <div className="welcome-actions">
         <a className="welcome-primary" href="/register">我是新用户，开始学习</a>
         <a className="welcome-secondary" href="/login">我已有账户，登录</a>

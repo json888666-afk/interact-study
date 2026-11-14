@@ -58,6 +58,18 @@ def with_options(number, stem):
             "options": [{"label": label, "text": text} for label, text in zip("ABC", OPTIONS)]}
 
 
+def simulated_questions(count, topic="二次函数", offset=400):
+    return [question(offset + index, topic, "multiple" if index == 0 else "single")
+            for index in range(count)]
+
+
+def no_online_exam(monkeypatch):
+    def unavailable(*_args, **_kwargs):
+        raise ExamUnavailable("测试使用本地题库")
+
+    monkeypatch.setattr("backend.quizzes.find_exam_questions", unavailable)
+
+
 @pytest.fixture
 def importer(client, monkeypatch):
     monkeypatch.setenv("EXAM_DEEPSEEK_API_KEY", "exam-test")
@@ -76,7 +88,7 @@ def importer(client, monkeypatch):
             assert data["candidates"][0]["stem"] == STEM
             return {"questions": [{"candidate": 0, "topic": "二次函数", "correct": [0], "explanation": "二次项系数为正。"}]}
         if prompt == DRAFT_PROMPT:
-            return {"topics": ["二次函数"], "questions": [question(400, "二次函数", "multiple")]}
+            return {"topics": ["二次函数"], "questions": simulated_questions(data["scope"]["count"])}
         assert prompt == FIRST_REVIEW_PROMPT
         return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
 
@@ -88,7 +100,8 @@ def importer(client, monkeypatch):
     return state
 
 
-def test_import_word_deduplicates_and_uses_private_bank_in_practice(client, importer):
+def test_import_word_deduplicates_and_uses_private_bank_in_practice(client, importer, monkeypatch):
+    no_online_exam(monkeypatch)
     data = document("1. " + STEM, *(f"{label}. {text}" for label, text in zip("ABC", OPTIONS)),
                     "2. " + SECOND, "参考答案", "1. A")
     assert upload(client, "paper.docx", data).status_code == 401
@@ -224,6 +237,7 @@ def test_same_number_in_different_sections_and_pages_is_not_merged():
 
 
 def test_knowledge_target_matches_bank_across_exams_but_exam_target_does_not(client, monkeypatch):
+    no_online_exam(monkeypatch)
     monkeypatch.setenv("EXAM_DEEPSEEK_API_KEY", "exam-test")
     beijing = STEM + "（北京）"
     chengdu = STEM + "（成都）"
@@ -242,8 +256,7 @@ def test_knowledge_target_matches_bank_across_exams_but_exam_target_does_not(cli
             index = next(i for i, item in enumerate(data["candidates"]) if item["stem"] == expected["stem"])
             return {"questions": [{"candidate": index, "topic": "二次函数", "correct": [0], "explanation": "系数为正。"}]}
         if prompt == DRAFT_PROMPT:
-            assert data["scope"]["count"] == 1
-            return {"topics": ["二次函数"], "questions": [question(400, "二次函数", "multiple")]}
+            return {"topics": ["二次函数"], "questions": simulated_questions(data["scope"]["count"])}
         assert prompt == FIRST_REVIEW_PROMPT
         return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
 
@@ -324,6 +337,7 @@ def test_confirm_validates_and_respects_ownership(client, importer):
 
 
 def test_review_only_library_question_enters_practice(client, monkeypatch):
+    no_online_exam(monkeypatch)
     monkeypatch.setenv("EXAM_DEEPSEEK_API_KEY", "exam-test")
     monkeypatch.setenv("EXAM_QUIZ_MODE", "debug")
 
@@ -336,12 +350,12 @@ def test_review_only_library_question_enters_practice(client, monkeypatch):
             return {"questions": [{"candidate": 0, "topic": "二次函数", "correct": [0],
                                    "explanation": "二次项系数为正。"}]}
         if prompt == DRAFT_PROMPT:
-            return {"topics": ["二次函数"], "questions": [question(400, "二次函数", "multiple")]}
+            return {"topics": ["二次函数"], "questions": simulated_questions(data["scope"]["count"])}
         assert prompt == FIRST_REVIEW_PROMPT
         return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
 
-    mock_upstream(handler, goal_handler=lambda _data: {"verdict": "approved", "message": "通过", "exam": EXAM})
-    register(client, "ReviewOnlyUser", "备考成都中考数学")
+    mock_upstream(handler, goal_handler=lambda _data: {"verdict": "approved", "message": "通过", "exam": None})
+    register(client, "ReviewOnlyUser", "学懂二次函数")
     body = document("1. " + STEM, *(f"{label}. {text}" for label, text in zip("ABC", OPTIONS)))
     response = upload(client, "review-only.docx", body, exam="双流中学第一次模拟试题")
     assert response.status_code == 201, response.text
@@ -360,6 +374,7 @@ def test_review_only_library_question_enters_practice(client, monkeypatch):
 
 
 def test_open_library_question_is_converted_to_choice(client, monkeypatch):
+    no_online_exam(monkeypatch)
     monkeypatch.setenv("EXAM_DEEPSEEK_API_KEY", "exam-test")
     stem = "求二次函数 y=x^2-3x 的顶点横坐标。"
 
@@ -375,7 +390,7 @@ def test_open_library_question_is_converted_to_choice(client, monkeypatch):
             return {"kind": "single", "topic": "二次函数", "stem": "二次函数 y=x^2-3x 的顶点横坐标是？",
                     "options": ["1.5", "-1.5", "0", "3"], "correct": [0], "explanation": "对称轴 x=-b/(2a)=1.5。"}
         if prompt == DRAFT_PROMPT:
-            return {"topics": ["二次函数"], "questions": [question(400, "二次函数", "multiple")]}
+            return {"topics": ["二次函数"], "questions": simulated_questions(data["scope"]["count"])}
         assert prompt == FIRST_REVIEW_PROMPT
         return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
 
@@ -450,6 +465,7 @@ def test_merge_duplicate_papers_migrates_existing(client):
 
 
 def test_all_candidates_are_sent_to_api(client, monkeypatch):
+    no_online_exam(monkeypatch)
     monkeypatch.setenv("EXAM_DEEPSEEK_API_KEY", "exam-test")
     quadratic = "已知二次函数 y=ax^2+bx+c 的图象开口向上。"
     inverse = "反比例函数 y=1/x 的图象位于哪些象限？"
@@ -470,7 +486,7 @@ def test_all_candidates_are_sent_to_api(client, monkeypatch):
             return {"questions": [{"candidate": index, "topic": "二次函数", "correct": [0],
                                    "explanation": "二次项系数为正。"}]}
         if prompt == DRAFT_PROMPT:
-            return {"topics": ["二次函数"], "questions": [question(400, "二次函数", "multiple")]}
+            return {"topics": ["二次函数"], "questions": simulated_questions(data["scope"]["count"])}
         assert prompt == FIRST_REVIEW_PROMPT
         return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
 
@@ -515,8 +531,7 @@ def test_open_question_rejected_by_api_is_not_converted(client, monkeypatch):
             return {"kind": "single", "topic": "反比例函数", "stem": "改写题",
                     "options": ["甲", "乙", "丙"], "correct": [0], "explanation": "解析"}
         if prompt == DRAFT_PROMPT:
-            return {"topics": ["二次函数"], "questions": [question(400, "二次函数", "single"),
-                                                          question(401, "二次函数", "multiple")]}
+            return {"topics": ["二次函数"], "questions": simulated_questions(data["scope"]["count"])}
         assert prompt == FIRST_REVIEW_PROMPT
         return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
 
@@ -599,6 +614,7 @@ def test_convert_to_choice_retries_with_review_feedback():
 
 
 def test_quiz_allows_single_simulated_with_past(client, monkeypatch):
+    no_online_exam(monkeypatch)
     monkeypatch.setenv("EXAM_DEEPSEEK_API_KEY", "exam-test")
     monkeypatch.setenv("EXAM_QUIZ_MODE", "debug")
 
@@ -609,7 +625,8 @@ def test_quiz_allows_single_simulated_with_past(client, monkeypatch):
         if prompt == EXAM_SELECT_PROMPT:
             return {"questions": [{"candidate": 0, "topic": "二次函数", "correct": [0], "explanation": "开口向上。"}]}
         if prompt == DRAFT_PROMPT:
-            return {"topics": ["二次函数"], "questions": [question(400, "二次函数", "single")]}
+            return {"topics": ["二次函数"], "questions": [question(400 + index, "二次函数", "single")
+                                                          for index in range(data["scope"]["count"])]}
         assert prompt == FIRST_REVIEW_PROMPT
         return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": []}
 
@@ -642,8 +659,7 @@ def test_quiz_fails_after_ten_review_failures(client, monkeypatch):
     def handler(prompt, content, _model):
         data = json.loads(content) if isinstance(content, str) and content.startswith("{") else content
         if prompt == DRAFT_PROMPT:
-            return {"topics": ["二次函数"], "questions": [question(400, "二次函数", "single"),
-                                                          question(401, "二次函数", "multiple")]}
+            return {"topics": ["二次函数"], "questions": simulated_questions(data["scope"]["count"])}
         assert prompt == FIRST_REVIEW_PROMPT
         return {"answers": [item["correct"] for item in data["draft"]["questions"]], "issues": ["核对题干"]}
 

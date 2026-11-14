@@ -201,7 +201,7 @@ function App({ user }: { user: User | null }) {
           <section className="home-head" aria-labelledby="home-title">
             <p className="home-greeting">{user ? `${greeting}，${user.username}` : '你好，访客'}</p>
             <h1 id="home-title">今天想弄懂什么？</h1>
-            <p className="home-sub">输入一个问题，生成可以亲手拖动的教学页；看懂之后再练两道题。</p>
+            <p className="home-sub">输入一个问题，生成可以亲手拖动的教学页；看懂之后再练十道题。</p>
           </section>
           <form className="question-card" onSubmit={submit}>
             <label htmlFor="question">你想弄懂什么？</label>
