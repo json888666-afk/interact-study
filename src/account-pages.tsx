@@ -273,7 +273,11 @@ export function Leaderboard({ guest }: { guest: boolean }) {
               const mine = entry.username === data.me?.username
               const avatar = avatarFor(entry.username)
               return <li key={entry.username} className={`rank-podium-item${mine ? ' rank-current-user' : ''}`}>
-                <span className={`rank-medal rank-medal-${place}`}>{place}</span>
+                <span className="rank-medal-wrap" aria-hidden="true">
+                  <i className="rank-ribbon rank-ribbon-left" />
+                  <i className="rank-ribbon rank-ribbon-right" />
+                  <span className={`rank-medal rank-medal-${place}`}>{place}</span>
+                </span>
                 <span className="rank-avatar rank-avatar-podium" style={{ background: avatar.color }} aria-hidden="true">{avatar.label}</span>
                 <span className="rank-podium-name">{entry.username}{mine && <span className="rank-you">你</span>}</span>
                 <span className="rank-podium-points">{entry.points}<small>分</small></span>

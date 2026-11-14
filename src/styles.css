@@ -72,11 +72,15 @@ a { color: inherit; }
 .rank-podium-item:nth-child(2) { order: 1; }
 .rank-podium-item:nth-child(3) { order: 3; }
 .rank-podium-item.rank-current-user { box-shadow: inset 0 0 0 1px var(--green); }
-.rank-medal { position: relative; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #8b96a0; color: #fff; font-size: 12px; font-weight: 800; }
-.rank-medal-1 { width: 32px; height: 32px; font-size: 13px; background: linear-gradient(145deg, #fff5bf, #e7b23b 46%, #a56810); color: #5a3904; box-shadow: 0 0 0 3px #f8e8b0, 0 0 18px #e3b84a99; }
+.rank-medal-wrap { position: relative; display: grid; place-items: start center; width: 56px; height: 74px; }
+.rank-ribbon { position: absolute; top: 35px; width: 15px; height: 32px; background: linear-gradient(180deg, #0c654b, #0a4b3a); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%); z-index: 0; }
+.rank-ribbon-left { left: 12px; transform: rotate(7deg); transform-origin: top center; }
+.rank-ribbon-right { right: 12px; transform: rotate(-7deg); transform-origin: top center; }
+.rank-medal { position: relative; z-index: 1; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #8b96a0; color: #fff; font-size: 18px; font-weight: 800; }
+.rank-medal-1 { width: 48px; height: 48px; font-size: 20px; background: linear-gradient(145deg, #fff5bf, #e7b23b 46%, #a56810); color: #5a3904; box-shadow: 0 0 0 3px #f8e8b0, 0 0 18px #e3b84a99; }
 .rank-medal-1::after { content: ""; position: absolute; inset: -6px; border: 1px solid #e8c45d88; border-radius: 50%; }
-.rank-medal-2 { width: 28px; height: 28px; background: linear-gradient(145deg, #f8fafc, #b9c4ce 48%, #77858f); color: #2f3b44; box-shadow: 0 0 0 2px #e2e8ed, 0 0 10px #aeb9c266; }
-.rank-medal-3 { width: 28px; height: 28px; background: linear-gradient(145deg, #f2c79b, #b87333 50%, #7a471e); color: #3d230f; box-shadow: 0 0 0 2px #e6c3a5, 0 0 8px #b8733366; }
+.rank-medal-2 { background: linear-gradient(145deg, #f8fafc, #b9c4ce 48%, #77858f); color: #2f3b44; box-shadow: 0 0 0 2px #e2e8ed, 0 0 10px #aeb9c266; }
+.rank-medal-3 { background: linear-gradient(145deg, #f2c79b, #b87333 50%, #7a471e); color: #3d230f; box-shadow: 0 0 0 2px #e6c3a5, 0 0 8px #b8733366; }
 .rank-avatar { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%; color: #fff; font-size: 13px; font-weight: 700; }
 .rank-avatar-podium { width: 56px; height: 56px; font-size: 20px; }
 .rank-podium-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 650; }
@@ -99,6 +103,12 @@ a { color: inherit; }
   .rank-podium { gap: 6px; }
   .rank-podium-item { padding: 10px 4px; }
   .rank-avatar-podium { width: 46px; height: 46px; font-size: 17px; }
+  .rank-medal-wrap { width: 50px; height: 68px; }
+  .rank-medal { width: 40px; height: 40px; font-size: 16px; }
+  .rank-medal-1 { width: 44px; height: 44px; font-size: 18px; }
+  .rank-ribbon { top: 32px; width: 13px; height: 28px; }
+  .rank-ribbon-left { left: 10px; }
+  .rank-ribbon-right { right: 10px; }
   .rank-self { align-items: flex-start; }
   .rankings th, .rankings td { padding: 10px 6px; }
   .rank-user { gap: 7px; }
