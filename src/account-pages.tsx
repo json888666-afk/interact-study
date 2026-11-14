@@ -260,19 +260,20 @@ export function Leaderboard({ guest }: { guest: boolean }) {
               <strong>第 {data.me.rank} 名</strong>
             </div>
             <div className="rank-self-side">
-              {data.me.listed_page !== null
-                ? <span><strong>{data.me.points}</strong> 分</span>
-                : <span className="rank-self-muted">暂未上榜</span>}
+              <span className={data.me.listed_page === null ? 'rank-self-muted' : undefined}>
+                {data.me.listed_page === null ? '暂未上榜 · ' : ''}当前积分：<strong>{data.me.points}</strong>分
+              </span>
               {typeof myPage === 'number' && myPage !== page &&
                 <button className="quiet-button" type="button" onClick={() => setPage(myPage)}>查看我的名次</button>}
             </div>
           </div>}
           {showPodium && <ol className="rank-podium" aria-label="前三名">
-            {data.entries.slice(0, 3).map((entry) => {
+            {data.entries.slice(0, 3).map((entry, index) => {
+              const place = index + 1
               const mine = entry.username === data.me?.username
               const avatar = avatarFor(entry.username)
               return <li key={entry.username} className={`rank-podium-item${mine ? ' rank-current-user' : ''}`}>
-                <span className={`rank-medal rank-medal-${entry.rank}`}>{entry.rank}</span>
+                <span className={`rank-medal rank-medal-${place}`}>{place}</span>
                 <span className="rank-avatar rank-avatar-podium" style={{ background: avatar.color }} aria-hidden="true">{avatar.label}</span>
                 <span className="rank-podium-name">{entry.username}{mine && <span className="rank-you">你</span>}</span>
                 <span className="rank-podium-points">{entry.points}<small>分</small></span>
